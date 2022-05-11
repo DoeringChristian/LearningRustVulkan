@@ -154,16 +154,18 @@ pub fn find_memorytype_index(
 
 pub struct ExampleBase {
     pub instance: hephaistos::Instance,
-    pub device: Device,
+    pub surface: hephaistos::Surface,
+    pub adapter: hephaistos::Adapter,
+    pub device: hephaistos::Device,
+    pub present_queue: hephaistos::Queue,
+
     pub swapchain_loader: Swapchain,
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,
-    pub adapter: hephaistos::Adapter,
 
     pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    pub present_queue: vk::Queue,
+    //pub present_queue: vk::Queue,
 
-    pub surface: hephaistos::Surface,
     pub surface_format: vk::SurfaceFormatKHR,
     pub surface_resolution: vk::Extent2D,
 
@@ -234,7 +236,9 @@ impl ExampleBase {
             });
 
 
+            let (device, present_queue) = adapter.request_device();
 
+            /*
             let device_extension_names_raw = [Swapchain::name().as_ptr()];
             let features = vk::PhysicalDeviceFeatures {
                 shader_clip_distance: 1,
@@ -256,6 +260,7 @@ impl ExampleBase {
                 .unwrap();
 
             let present_queue = device.get_device_queue(adapter.queue_family_index as u32, 0);
+            */
 
 
 
@@ -403,7 +408,7 @@ impl ExampleBase {
                 &device,
                 setup_command_buffer,
                 setup_commands_reuse_fence,
-                present_queue,
+                present_queue.queue,
                 &[],
                 &[],
                 &[],
@@ -894,7 +899,7 @@ fn main() {
                 &base.device,
                 base.draw_command_buffer,
                 base.draw_commands_reuse_fence,
-                base.present_queue,
+                base.present_queue.queue,
                 &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT],
                 &[base.present_complete_semaphore],
                 &[base.rendering_complete_semaphore],
@@ -946,7 +951,7 @@ fn main() {
                 .image_indices(&image_indices);
 
             base.swapchain_loader
-                .queue_present(base.present_queue, &present_info)
+                .queue_present(base.present_queue.queue, &present_info)
                 .unwrap();
         });
 

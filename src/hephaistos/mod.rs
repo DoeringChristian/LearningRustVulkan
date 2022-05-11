@@ -41,7 +41,10 @@ pub struct Adapter{
     pub instance: Instance,
 }
 
+#[derive(Deref, DerefMut)]
 pub struct DeviceShared{
+    #[deref]
+    #[deref_mut]
     pub device: ash::Device,
     pub instance: Instance,
 }
@@ -49,7 +52,10 @@ pub struct DeviceShared{
 #[derive(Deref, DerefMut, Clone)]
 pub struct Device(Arc<DeviceShared>);
 
+#[derive(Deref, DerefMut)]
 pub struct Queue{
+    #[deref]
+    #[deref_mut]
     pub queue: vk::Queue,
     pub device: Device,
     pub family_index: u32,
