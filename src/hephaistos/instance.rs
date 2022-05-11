@@ -171,6 +171,7 @@ impl Drop for InstanceShared{
                 Some(())
             });
             self.instance.destroy_instance(None);
+            println!("debug_utils, instance");
         }
     }
 }
@@ -183,6 +184,7 @@ impl Drop for Surface{
                 Some(())
             });
             self.surface_loader.destroy_surface(self.surface, None);
+            println!("swapchain, surface");
         }
     }
 }

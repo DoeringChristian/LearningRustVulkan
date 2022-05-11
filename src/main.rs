@@ -202,64 +202,6 @@ impl ExampleBase {
             //let swapchain = instance.create_swapchain(&adapter, &device, &surface);
             surface.create_swapchain(&device, &adapter);
 
-            /*
-            let surface_format = surface.surface_loader
-                .get_physical_device_surface_formats(adapter.pdevice, surface.surface)
-                .unwrap()[0];
-
-            let surface_capabilities = surface.surface_loader
-                .get_physical_device_surface_capabilities(adapter.pdevice, surface.surface)
-                .unwrap();
-            let mut desired_image_count = surface_capabilities.min_image_count + 1;
-            if surface_capabilities.max_image_count > 0
-                && desired_image_count > surface_capabilities.max_image_count
-            {
-                desired_image_count = surface_capabilities.max_image_count;
-            }
-            let surface_resolution = match surface_capabilities.current_extent.width {
-                std::u32::MAX => vk::Extent2D {
-                    width: window_width,
-                    height: window_height,
-                },
-                _ => surface_capabilities.current_extent,
-            };
-            let pre_transform = if surface_capabilities
-                .supported_transforms
-                .contains(vk::SurfaceTransformFlagsKHR::IDENTITY)
-            {
-                vk::SurfaceTransformFlagsKHR::IDENTITY
-            } else {
-                surface_capabilities.current_transform
-            };
-            let present_modes = surface.surface_loader
-                .get_physical_device_surface_present_modes(adapter.pdevice, surface.surface)
-                .unwrap();
-            let present_mode = present_modes
-                .iter()
-                .cloned()
-                .find(|&mode| mode == vk::PresentModeKHR::MAILBOX)
-                .unwrap_or(vk::PresentModeKHR::FIFO);
-            let swapchain_loader = Swapchain::new(&instance.instance, &device);
-
-            let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-                .surface(surface.surface)
-                .min_image_count(desired_image_count)
-                .image_color_space(surface_format.color_space)
-                .image_format(surface_format.format)
-                .image_extent(surface_resolution)
-                .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-                .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-                .pre_transform(pre_transform)
-                .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-                .present_mode(present_mode)
-                .clipped(true)
-                .image_array_layers(1);
-
-            let swapchain = swapchain_loader
-                .create_swapchain(&swapchain_create_info, None)
-                .unwrap();
-            */
-
             let pool_create_info = vk::CommandPoolCreateInfo::builder()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
                 .queue_family_index(adapter.queue_family_index);
