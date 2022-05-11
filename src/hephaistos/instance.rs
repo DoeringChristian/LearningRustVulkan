@@ -97,11 +97,13 @@ impl Instance {
 
             let surface_loader = khr::Surface::new(&self.entry, &self.instance);
 
-            Surface {
+            Surface{
                 surface,
                 surface_loader,
                 instance: self.clone(),
+                swapchain: None,
             }
+
         }
     }
 
@@ -176,7 +178,21 @@ impl Drop for InstanceShared{
 impl Drop for Surface{
     fn drop(&mut self) {
         unsafe{
+            self.swapchain.as_ref().and_then(|s|{
+                s.swapchain_loader.destroy_swapchain(s.swapchain, None);
+                Some(())
+            });
             self.surface_loader.destroy_surface(self.surface, None);
         }
     }
 }
+
+/*
+impl Drop for Swapchain{
+    fn drop(&mut self) {
+        unsafe{
+            self.swapchain_loader.destroy_swapchain(self.swapchain, None);
+        }
+    }
+}
+*/

@@ -104,39 +104,6 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
     }
 }
 
-unsafe extern "system" fn vulkan_debug_callback(
-    message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
-    message_type: vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
-    _user_data: *mut std::os::raw::c_void,
-) -> vk::Bool32 {
-    let callback_data = *p_callback_data;
-    let message_id_number: i32 = callback_data.message_id_number as i32;
-
-    let message_id_name = if callback_data.p_message_id_name.is_null() {
-        Cow::from("")
-    } else {
-        CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy()
-    };
-
-    let message = if callback_data.p_message.is_null() {
-        Cow::from("")
-    } else {
-        CStr::from_ptr(callback_data.p_message).to_string_lossy()
-    };
-
-    println!(
-        "{:?}:\n{:?} [{} ({})] : {}\n",
-        message_severity,
-        message_type,
-        message_id_name,
-        &message_id_number.to_string(),
-        message,
-    );
-
-    vk::FALSE
-}
-
 pub fn find_memorytype_index(
     memory_req: &vk::MemoryRequirements,
     memory_prop: &vk::PhysicalDeviceMemoryProperties,
@@ -159,17 +126,12 @@ pub struct ExampleBase {
     pub device: hephaistos::Device,
     pub present_queue: hephaistos::Queue,
 
-    pub swapchain_loader: Swapchain,
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,
 
     pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     //pub present_queue: vk::Queue,
 
-    pub surface_format: vk::SurfaceFormatKHR,
-    pub surface_resolution: vk::Extent2D,
-
-    pub swapchain: vk::SwapchainKHR,
     pub present_images: Vec<vk::Image>,
     pub present_image_views: Vec<vk::ImageView>,
 
@@ -228,42 +190,19 @@ impl ExampleBase {
                 .unwrap();
 
             let instance = hephaistos::Instance::init(Some(&window));
-            let surface = instance.create_surface(&window);
+            let mut surface = instance.create_surface(&window);
 
             let adapter = instance.request_adapter(&hephaistos::AdapterDescriptor{
                 compatible_surface: Some(&surface),
                 queue_flags: vk::QueueFlags::GRAPHICS,
             });
 
-
             let (device, present_queue) = adapter.request_device();
 
+            //let swapchain = instance.create_swapchain(&adapter, &device, &surface);
+            surface.create_swapchain(&device, &adapter);
+
             /*
-            let device_extension_names_raw = [Swapchain::name().as_ptr()];
-            let features = vk::PhysicalDeviceFeatures {
-                shader_clip_distance: 1,
-                ..Default::default()
-            };
-            let priorities = [1.0];
-
-            let queue_info = vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(adapter.queue_family_index)
-                .queue_priorities(&priorities);
-
-            let device_create_info = vk::DeviceCreateInfo::builder()
-                .queue_create_infos(std::slice::from_ref(&queue_info))
-                .enabled_extension_names(&device_extension_names_raw)
-                .enabled_features(&features);
-
-            let device: Device = instance.instance
-                .create_device(adapter.pdevice, &device_create_info, None)
-                .unwrap();
-
-            let present_queue = device.get_device_queue(adapter.queue_family_index as u32, 0);
-            */
-
-
-
             let surface_format = surface.surface_loader
                 .get_physical_device_surface_formats(adapter.pdevice, surface.surface)
                 .unwrap()[0];
@@ -319,6 +258,7 @@ impl ExampleBase {
             let swapchain = swapchain_loader
                 .create_swapchain(&swapchain_create_info, None)
                 .unwrap();
+            */
 
             let pool_create_info = vk::CommandPoolCreateInfo::builder()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
@@ -337,13 +277,13 @@ impl ExampleBase {
             let setup_command_buffer = command_buffers[0];
             let draw_command_buffer = command_buffers[1];
 
-            let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
+            let present_images = surface.swapchain.as_ref().unwrap().swapchain_loader.get_swapchain_images(surface.swapchain.as_ref().unwrap().swapchain).unwrap();
             let present_image_views: Vec<vk::ImageView> = present_images
                 .iter()
                 .map(|&image| {
                     let create_view_info = vk::ImageViewCreateInfo::builder()
                         .view_type(vk::ImageViewType::TYPE_2D)
-                        .format(surface_format.format)
+                        .format(surface.swapchain.as_ref().unwrap().surface_format.format)
                         .components(vk::ComponentMapping {
                             r: vk::ComponentSwizzle::R,
                             g: vk::ComponentSwizzle::G,
@@ -365,7 +305,7 @@ impl ExampleBase {
             let depth_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
                 .format(vk::Format::D16_UNORM)
-                .extent(surface_resolution.into())
+                .extent(surface.swapchain.as_ref().unwrap().extent.into())
                 .mip_levels(1)
                 .array_layers(1)
                 .samples(vk::SampleCountFlags::TYPE_1)
@@ -473,11 +413,7 @@ impl ExampleBase {
                 adapter,
                 device_memory_properties,
                 window,
-                surface_format,
                 present_queue,
-                surface_resolution,
-                swapchain_loader,
-                swapchain,
                 present_images,
                 present_image_views,
                 pool,
@@ -515,9 +451,6 @@ impl Drop for ExampleBase {
                 self.device.destroy_image_view(image_view, None);
             }
             self.device.destroy_command_pool(self.pool, None);
-            self.swapchain_loader
-                .destroy_swapchain(self.swapchain, None);
-            self.device.destroy_device(None);
         }
     }
 }
@@ -530,10 +463,10 @@ struct Vertex {
 
 fn main() {
     unsafe {
-        let base = ExampleBase::new(1920, 1080);
+        let base = ExampleBase::new(800, 600);
         let renderpass_attachments = [
             vk::AttachmentDescription {
-                format: base.surface_format.format,
+                format: base.surface.swapchain.as_ref().unwrap().surface_format.format,
                 samples: vk::SampleCountFlags::TYPE_1,
                 load_op: vk::AttachmentLoadOp::CLEAR,
                 store_op: vk::AttachmentStoreOp::STORE,
@@ -589,8 +522,8 @@ fn main() {
                 let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(renderpass)
                     .attachments(&framebuffer_attachments)
-                    .width(base.surface_resolution.width)
-                    .height(base.surface_resolution.height)
+                    .width(base.surface.swapchain.as_ref().unwrap().extent.width)
+                    .height(base.surface.swapchain.as_ref().unwrap().extent.height)
                     .layers(1);
 
                 base.device
@@ -787,12 +720,12 @@ fn main() {
         let viewports = [vk::Viewport {
             x: 0.0,
             y: 0.0,
-            width: base.surface_resolution.width as f32,
-            height: base.surface_resolution.height as f32,
+            width: base.surface.swapchain.as_ref().unwrap().extent.width as f32,
+            height: base.surface.swapchain.as_ref().unwrap().extent.height as f32,
             min_depth: 0.0,
             max_depth: 1.0,
         }];
-        let scissors = [base.surface_resolution.into()];
+        let scissors = [base.surface.swapchain.as_ref().unwrap().extent.into()];
         let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder()
             .scissors(&scissors)
             .viewports(&viewports);
@@ -867,9 +800,11 @@ fn main() {
 
         base.render_loop(|| {
             let (present_index, _) = base
+                .surface
+                .swapchain.as_ref().unwrap()
                 .swapchain_loader
                 .acquire_next_image(
-                    base.swapchain,
+                    base.surface.swapchain.as_ref().unwrap().swapchain,
                     std::u64::MAX,
                     base.present_complete_semaphore,
                     vk::Fence::null(),
@@ -892,7 +827,7 @@ fn main() {
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
                 .render_pass(renderpass)
                 .framebuffer(framebuffers[present_index as usize])
-                .render_area(base.surface_resolution.into())
+                .render_area(base.surface.swapchain.as_ref().unwrap().extent.into())
                 .clear_values(&clear_values);
 
             record_submit_commandbuffer(
@@ -943,14 +878,14 @@ fn main() {
             );
             //let mut present_info_err = mem::zeroed();
             let wait_semaphors = [base.rendering_complete_semaphore];
-            let swapchains = [base.swapchain];
+            let swapchains = [base.surface.swapchain.as_ref().unwrap().swapchain];
             let image_indices = [present_index];
             let present_info = vk::PresentInfoKHR::builder()
                 .wait_semaphores(&wait_semaphors) // &base.rendering_complete_semaphore)
                 .swapchains(&swapchains)
                 .image_indices(&image_indices);
 
-            base.swapchain_loader
+            base.surface.swapchain.as_ref().unwrap().swapchain_loader
                 .queue_present(base.present_queue.queue, &present_info)
                 .unwrap();
         });

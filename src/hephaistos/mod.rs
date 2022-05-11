@@ -3,10 +3,14 @@ pub mod instance;
 pub mod utils;
 pub mod descriptors;
 pub mod adapter;
+pub mod device;
+pub mod surface;
 
 pub use instance::*;
 pub use descriptors::*;
 pub use adapter::*;
+pub use device::*;
+pub use surface::*;
 
 use std::ffi::{CStr, CString};
 
@@ -33,6 +37,7 @@ pub struct Surface{
     pub surface: ash::vk::SurfaceKHR,
     pub surface_loader: khr::Surface,
     pub instance: Instance,
+    pub swapchain: Option<Swapchain>,
 }
 
 pub struct Adapter{
@@ -60,3 +65,11 @@ pub struct Queue{
     pub device: Device,
     pub family_index: u32,
 }
+
+pub struct Swapchain{
+    pub swapchain: vk::SwapchainKHR,
+    pub swapchain_loader: khr::Swapchain,
+    pub surface_format: vk::SurfaceFormatKHR,
+    pub extent: vk::Extent2D,
+}
+
