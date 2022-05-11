@@ -2,9 +2,11 @@
 pub mod instance;
 pub mod utils;
 pub mod descriptors;
+pub mod adapter;
 
 pub use instance::*;
 pub use descriptors::*;
+pub use adapter::*;
 
 use std::ffi::{CStr, CString};
 
@@ -36,4 +38,19 @@ pub struct Surface{
 pub struct Adapter{
     pub pdevice: vk::PhysicalDevice,
     pub queue_family_index: u32,
+    pub instance: Instance,
+}
+
+pub struct DeviceShared{
+    pub device: ash::Device,
+    pub instance: Instance,
+}
+
+#[derive(Deref, DerefMut, Clone)]
+pub struct Device(Arc<DeviceShared>);
+
+pub struct Queue{
+    pub queue: vk::Queue,
+    pub device: Device,
+    pub family_index: u32,
 }

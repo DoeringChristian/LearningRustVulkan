@@ -233,39 +233,8 @@ impl ExampleBase {
                 queue_flags: vk::QueueFlags::GRAPHICS,
             });
 
-            //let surface = ash_window::create_surface(&instance.entry, &instance.instance, &window, None).unwrap();
-            /*
-            let pdevices = instance.instance
-                .enumerate_physical_devices()
-                .expect("Physical device error");
-            let surface_loader = Surface::new(&instance.entry, &instance.instance);
-            let (pdevice, queue_family_index) = pdevices
-                .iter()
-                .find_map(|pdevice| {
-                    instance.instance
-                        .get_physical_device_queue_family_properties(*pdevice)
-                        .iter()
-                        .enumerate()
-                        .find_map(|(index, info)| {
-                            let supports_graphic_and_surface =
-                                info.queue_flags.contains(vk::QueueFlags::GRAPHICS)
-                                    && surface_loader
-                                        .get_physical_device_surface_support(
-                                            *pdevice,
-                                            index as u32,
-                                            surface.surface,
-                                        )
-                                        .unwrap();
-                            if supports_graphic_and_surface {
-                                Some((*pdevice, index))
-                            } else {
-                                None
-                            }
-                        })
-                })
-                .expect("Couldn't find suitable device.");
-            let queue_family_index = queue_family_index as u32;
-            */
+
+
             let device_extension_names_raw = [Swapchain::name().as_ptr()];
             let features = vk::PhysicalDeviceFeatures {
                 shader_clip_distance: 1,
@@ -287,6 +256,8 @@ impl ExampleBase {
                 .unwrap();
 
             let present_queue = device.get_device_queue(adapter.queue_family_index as u32, 0);
+
+
 
             let surface_format = surface.surface_loader
                 .get_physical_device_surface_formats(adapter.pdevice, surface.surface)

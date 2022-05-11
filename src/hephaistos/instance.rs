@@ -140,7 +140,7 @@ impl Instance {
                             }
                         })
                 })
-            .min_by_key(|(pdevice, queue_family_index)|{
+            .min_by_key(|(pdevice, _)|{
                 match self.instance.get_physical_device_properties(*pdevice).device_type{
                     vk::PhysicalDeviceType::DISCRETE_GPU => 0,
                     vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
@@ -155,6 +155,7 @@ impl Instance {
             Adapter{
                 pdevice,
                 queue_family_index: queue_family_index as u32,
+                instance: self.clone(),
             }
         }
     }
