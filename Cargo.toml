@@ -1,0 +1,20 @@
+[package]
+name = "test04"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ash = {version = "0.37", features = ["linked", "debug"]}
+ash-window = "0.10"
+winit = "0.26"
+num = "0.2"
+image = "0.23"
+memoffset = "0.5.1"
+bytemuck = "*"
+cgmath = "0.17.0"
+arrayvec = "0.7"
+bitflags = "1.0"
+parking_lot = "0.11"
+raw-window-handle = "0.3.4"
