@@ -7,6 +7,7 @@ use ash::util::*;
 use std::io::Cursor;
 use std::mem;
 use std::mem::align_of;
+use std::sync::Arc;
 
 extern crate ash;
 extern crate winit;
@@ -154,17 +155,15 @@ pub fn find_memorytype_index(
 pub struct ExampleBase {
     pub instance: hephaistos::Instance,
     pub device: Device,
-    pub surface_loader: Surface,
     pub swapchain_loader: Swapchain,
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,
+    pub adapter: hephaistos::Adapter,
 
-    pub pdevice: vk::PhysicalDevice,
     pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    pub queue_family_index: u32,
     pub present_queue: vk::Queue,
 
-    pub surface: vk::SurfaceKHR,
+    pub surface: hephaistos::Surface,
     pub surface_format: vk::SurfaceFormatKHR,
     pub surface_resolution: vk::Extent2D,
 
@@ -225,60 +224,17 @@ impl ExampleBase {
                 ))
                 .build(&event_loop)
                 .unwrap();
-            /*
-            let entry = Entry::linked();
-            let app_name = CStr::from_bytes_with_nul_unchecked(b"VulkanTriangle\0");
 
-            let layer_names = [CStr::from_bytes_with_nul_unchecked(
-                b"VK_LAYER_KHRONOS_validation\0",
-            )];
-            let layers_names_raw: Vec<*const c_char> = layer_names
-                .iter()
-                .map(|raw_name| raw_name.as_ptr())
-                .collect();
-
-            let mut extension_names = ash_window::enumerate_required_extensions(&window)
-                .unwrap()
-                .to_vec();
-            //let mut extension_names: Vec<*const c_char> = required_extensions(&entry).iter().map(|e| e.as_ptr()).collect();
-            extension_names.push(DebugUtils::name().as_ptr());
-
-            let appinfo = vk::ApplicationInfo::builder()
-                .application_name(app_name)
-                .application_version(0)
-                .engine_name(app_name)
-                .engine_version(0)
-                .api_version(vk::make_api_version(0, 1, 0, 0));
-
-            let create_info = vk::InstanceCreateInfo::builder()
-                .application_info(&appinfo)
-                .enabled_layer_names(&layers_names_raw)
-                .enabled_extension_names(&extension_names);
-
-            let instance: Instance = entry
-                .create_instance(&create_info, None)
-                .expect("Instance creation error");
-
-            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-                .message_severity(
-                    vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                        | vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
-                )
-                .message_type(
-                    vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
-                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
-                )
-                .pfn_user_callback(Some(vulkan_debug_callback));
-
-            let debug_utils_loader = DebugUtils::new(&entry, &instance);
-            let debug_call_back = debug_utils_loader
-                .create_debug_utils_messenger(&debug_info, None)
-                .unwrap();
-            */
             let instance = hephaistos::Instance::init(Some(&window));
-            let surface = ash_window::create_surface(&instance.entry, &instance.instance, &window, None).unwrap();
+            let surface = instance.create_surface(&window);
+
+            let adapter = instance.request_adapter(&hephaistos::AdapterDescriptor{
+                compatible_surface: Some(&surface),
+                queue_flags: vk::QueueFlags::GRAPHICS,
+            });
+
+            //let surface = ash_window::create_surface(&instance.entry, &instance.instance, &window, None).unwrap();
+            /*
             let pdevices = instance.instance
                 .enumerate_physical_devices()
                 .expect("Physical device error");
@@ -297,7 +253,7 @@ impl ExampleBase {
                                         .get_physical_device_surface_support(
                                             *pdevice,
                                             index as u32,
-                                            surface,
+                                            surface.surface,
                                         )
                                         .unwrap();
                             if supports_graphic_and_surface {
@@ -309,6 +265,7 @@ impl ExampleBase {
                 })
                 .expect("Couldn't find suitable device.");
             let queue_family_index = queue_family_index as u32;
+            */
             let device_extension_names_raw = [Swapchain::name().as_ptr()];
             let features = vk::PhysicalDeviceFeatures {
                 shader_clip_distance: 1,
@@ -317,7 +274,7 @@ impl ExampleBase {
             let priorities = [1.0];
 
             let queue_info = vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(queue_family_index)
+                .queue_family_index(adapter.queue_family_index)
                 .queue_priorities(&priorities);
 
             let device_create_info = vk::DeviceCreateInfo::builder()
@@ -326,17 +283,17 @@ impl ExampleBase {
                 .enabled_features(&features);
 
             let device: Device = instance.instance
-                .create_device(pdevice, &device_create_info, None)
+                .create_device(adapter.pdevice, &device_create_info, None)
                 .unwrap();
 
-            let present_queue = device.get_device_queue(queue_family_index as u32, 0);
+            let present_queue = device.get_device_queue(adapter.queue_family_index as u32, 0);
 
-            let surface_format = surface_loader
-                .get_physical_device_surface_formats(pdevice, surface)
+            let surface_format = surface.surface_loader
+                .get_physical_device_surface_formats(adapter.pdevice, surface.surface)
                 .unwrap()[0];
 
-            let surface_capabilities = surface_loader
-                .get_physical_device_surface_capabilities(pdevice, surface)
+            let surface_capabilities = surface.surface_loader
+                .get_physical_device_surface_capabilities(adapter.pdevice, surface.surface)
                 .unwrap();
             let mut desired_image_count = surface_capabilities.min_image_count + 1;
             if surface_capabilities.max_image_count > 0
@@ -359,8 +316,8 @@ impl ExampleBase {
             } else {
                 surface_capabilities.current_transform
             };
-            let present_modes = surface_loader
-                .get_physical_device_surface_present_modes(pdevice, surface)
+            let present_modes = surface.surface_loader
+                .get_physical_device_surface_present_modes(adapter.pdevice, surface.surface)
                 .unwrap();
             let present_mode = present_modes
                 .iter()
@@ -370,7 +327,7 @@ impl ExampleBase {
             let swapchain_loader = Swapchain::new(&instance.instance, &device);
 
             let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-                .surface(surface)
+                .surface(surface.surface)
                 .min_image_count(desired_image_count)
                 .image_color_space(surface_format.color_space)
                 .image_format(surface_format.format)
@@ -389,7 +346,7 @@ impl ExampleBase {
 
             let pool_create_info = vk::CommandPoolCreateInfo::builder()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-                .queue_family_index(queue_family_index);
+                .queue_family_index(adapter.queue_family_index);
 
             let pool = device.create_command_pool(&pool_create_info, None).unwrap();
 
@@ -428,7 +385,7 @@ impl ExampleBase {
                     device.create_image_view(&create_view_info, None).unwrap()
                 })
                 .collect();
-            let device_memory_properties = instance.instance.get_physical_device_memory_properties(pdevice);
+            let device_memory_properties = instance.instance.get_physical_device_memory_properties(adapter.pdevice);
             let depth_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
                 .format(vk::Format::D16_UNORM)
@@ -537,11 +494,9 @@ impl ExampleBase {
                 event_loop: RefCell::new(event_loop),
                 instance,
                 device,
-                queue_family_index,
-                pdevice,
+                adapter,
                 device_memory_properties,
                 window,
-                surface_loader,
                 surface_format,
                 present_queue,
                 surface_resolution,
@@ -587,7 +542,6 @@ impl Drop for ExampleBase {
             self.swapchain_loader
                 .destroy_swapchain(self.swapchain, None);
             self.device.destroy_device(None);
-            self.surface_loader.destroy_surface(self.surface, None);
         }
     }
 }

@@ -4,6 +4,7 @@ use super::*;
 use ash::extensions::khr;
 use ash::{extensions::ext::DebugUtils, vk};
 use raw_window_handle::HasRawWindowHandle;
+use std::sync::Arc;
 
 impl Instance {
     pub fn init(compatible_window: Option<&dyn HasRawWindowHandle>) -> Self {
@@ -77,12 +78,14 @@ impl Instance {
                 .create_debug_utils_messenger(&debug_info, None)
                 .unwrap();
 
-            Self { 
-                instance, 
-                entry,
-                debug_utils_loader: Some(debug_utils_loader),
-                debug_call_back: Some(debug_call_back),
-            }
+            Self(Arc::new(
+                    InstanceShared{
+                        instance,
+                        entry,
+                        debug_utils_loader: Some(debug_utils_loader),
+                        debug_call_back: Some(debug_call_back),
+                }
+            ))
         }
     }
 
@@ -90,19 +93,74 @@ impl Instance {
         unsafe {
             let surface =
                 ash_window::create_surface(&self.entry, &self.instance, window_handle, None)
-                    .unwrap();
+                .unwrap();
 
             let surface_loader = khr::Surface::new(&self.entry, &self.instance);
 
             Surface {
                 surface,
                 surface_loader,
+                instance: self.clone(),
+            }
+        }
+    }
+
+    pub fn request_adapter(&self, desc: &AdapterDescriptor) -> Adapter{
+        unsafe{
+            let pdevices = self.instance
+                .enumerate_physical_devices()
+                .expect("Physical device error");
+            let (pdevice, queue_family_index) = pdevices
+                .iter()
+                .filter_map(|pdevice| {
+                    Some(pdevice)
+                })
+                .filter_map(|pdevice| {
+                    self.instance
+                        .get_physical_device_queue_family_properties(*pdevice)
+                        .iter()
+                        .enumerate()
+                        .find_map(|(index, info)| {
+                            let supports_required =
+                                info.queue_flags.contains(desc.queue_flags) && 
+                                match desc.compatible_surface{
+                                    Some(surface) => {
+                                        surface.surface_loader.get_physical_device_surface_support(
+                                            *pdevice,
+                                            index as u32,
+                                            surface.surface,
+                                        ).unwrap()
+                                    },
+                                    None => true,
+                                };
+                            if supports_required {
+                                Some((*pdevice, index))
+                            } else {
+                                None
+                            }
+                        })
+                })
+            .min_by_key(|(pdevice, queue_family_index)|{
+                match self.instance.get_physical_device_properties(*pdevice).device_type{
+                    vk::PhysicalDeviceType::DISCRETE_GPU => 0,
+                    vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
+                    vk::PhysicalDeviceType::VIRTUAL_GPU => 2,
+                    vk::PhysicalDeviceType::CPU => 3,
+                    vk::PhysicalDeviceType::OTHER => 4,
+                    _ => 5,
+                }
+            })
+            .expect("Couldn't find suitable device.");
+
+            Adapter{
+                pdevice,
+                queue_family_index: queue_family_index as u32,
             }
         }
     }
 }
 
-impl Drop for Instance{
+impl Drop for InstanceShared{
     fn drop(&mut self) {
         unsafe{
             self.debug_utils_loader.as_ref().and_then(|d| {
@@ -110,6 +168,14 @@ impl Drop for Instance{
                 Some(())
             });
             self.instance.destroy_instance(None);
+        }
+    }
+}
+
+impl Drop for Surface{
+    fn drop(&mut self) {
+        unsafe{
+            self.surface_loader.destroy_surface(self.surface, None);
         }
     }
 }
