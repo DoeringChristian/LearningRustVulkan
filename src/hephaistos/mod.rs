@@ -6,6 +6,7 @@ pub mod adapter;
 pub mod device;
 pub mod surface;
 
+use fxhash::FxHashMap;
 pub use instance::*;
 pub use descriptors::*;
 pub use adapter::*;
@@ -16,7 +17,8 @@ use std::ffi::{CStr, CString};
 
 use ash::extensions::{khr, ext};
 use ash::vk;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use gpu_allocator::vulkan::*;
 
 use derive_more::*;
 
@@ -49,6 +51,7 @@ pub struct Device{
     #[deref_mut]
     pub device: ash::Device,
     pub instance: Arc<Instance>,
+    //pub global_allocator: Allocator,
 }
 
 #[derive(Deref, DerefMut)]
@@ -68,3 +71,15 @@ pub struct Swapchain{
     pub device: Arc<Device>,
 }
 
+pub struct SwapchainImage{
+    pub image: Arc<Image>,
+    pub image_index: u32,
+    pub acquire_semaphore: vk::Semaphore,
+    pub rendering_finished_semaphore: vk::Semaphore,
+}
+
+// TODO: Implement
+pub struct Image{
+    pub image: vk::Image,
+    pub desc: ImageDescriptor,
+}
