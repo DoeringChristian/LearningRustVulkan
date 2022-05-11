@@ -5,8 +5,12 @@ use ash::{extensions::ext::DebugUtils, vk};
 use raw_window_handle::HasRawWindowHandle;
 use std::sync::Arc;
 
-impl Adapter{
-    pub fn request_device(&self) -> (Device, Queue){
+pub trait SharedAdapter{
+    fn request_device(&self) -> (Arc<Device>, Arc<Queue>);
+}
+
+impl SharedAdapter for Arc<Adapter>{
+    fn request_device(&self) -> (Arc<Device>, Arc<Queue>) {
         unsafe{
 
 
@@ -32,18 +36,19 @@ impl Adapter{
 
             let queue = device.get_device_queue(self.queue_family_index as u32, 0);
 
-            let device = Device(Arc::new(DeviceShared{
+            let device = Arc::new(Device{
                 device,
                 instance: self.instance.clone(),
-            }));
+            });
 
-            let queue = Queue{
+            let queue = Arc::new(Queue{
                 queue,
                 device: device.clone(),
                 family_index: self.queue_family_index,
-            };
+            });
 
             (device, queue)
         }
     }
 }
+

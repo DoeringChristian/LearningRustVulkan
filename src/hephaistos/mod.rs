@@ -20,15 +20,12 @@ use std::sync::Arc;
 
 use derive_more::*;
 
-pub struct InstanceShared{
+pub struct Instance{
     pub entry: ash::Entry,
     pub instance: ash::Instance,
     pub debug_call_back: Option<vk::DebugUtilsMessengerEXT>,
     pub debug_utils_loader: Option<ext::DebugUtils>,
 }
-
-#[derive(Deref, DerefMut, Clone)]
-pub struct Instance(Arc<InstanceShared>);
 
 #[derive(Deref, DerefMut)]
 pub struct Surface{
@@ -36,33 +33,30 @@ pub struct Surface{
     #[deref_mut]
     pub surface: ash::vk::SurfaceKHR,
     pub surface_loader: khr::Surface,
-    pub instance: Instance,
+    pub instance: Arc<Instance>,
     pub swapchain: Option<Swapchain>,
 }
 
 pub struct Adapter{
     pub pdevice: vk::PhysicalDevice,
     pub queue_family_index: u32,
-    pub instance: Instance,
+    pub instance: Arc<Instance>,
 }
 
 #[derive(Deref, DerefMut)]
-pub struct DeviceShared{
+pub struct Device{
     #[deref]
     #[deref_mut]
     pub device: ash::Device,
-    pub instance: Instance,
+    pub instance: Arc<Instance>,
 }
-
-#[derive(Deref, DerefMut, Clone)]
-pub struct Device(Arc<DeviceShared>);
 
 #[derive(Deref, DerefMut)]
 pub struct Queue{
     #[deref]
     #[deref_mut]
     pub queue: vk::Queue,
-    pub device: Device,
+    pub device: Arc<Device>,
     pub family_index: u32,
 }
 
@@ -71,5 +65,6 @@ pub struct Swapchain{
     pub swapchain_loader: khr::Swapchain,
     pub surface_format: vk::SurfaceFormatKHR,
     pub extent: vk::Extent2D,
+    pub device: Arc<Device>,
 }
 

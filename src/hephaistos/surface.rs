@@ -5,8 +5,12 @@ use ash::{extensions::ext::DebugUtils, vk};
 use raw_window_handle::HasRawWindowHandle;
 use std::sync::Arc;
 
-impl Surface{
-    pub fn create_swapchain(&mut self, device: &Device, adapter: &Adapter){
+pub trait SharedSurface{
+    fn create_swapchain(&mut self, device: Arc<Device>, adapter: Arc<Adapter>);
+}
+
+impl SharedSurface for Arc<Surface>{
+    fn create_swapchain(&mut self, device: Arc<Device>, adapter: Arc<Adapter>) {
         unsafe{
             let surface_format = self.surface_loader
                 .get_physical_device_surface_formats(adapter.pdevice, self.surface)
@@ -61,12 +65,15 @@ impl Surface{
                 .create_swapchain(&swapchain_create_info, None)
                 .unwrap();
 
-            self.swapchain = Some(Swapchain{
+            let surface = Arc::get_mut(self).unwrap();
+            surface.swapchain = Some(Swapchain{
                 swapchain,
                 swapchain_loader,
                 surface_format,
                 extent: surface_resolution,
+                device: device.clone(),
             })
         }
     }
 }
+

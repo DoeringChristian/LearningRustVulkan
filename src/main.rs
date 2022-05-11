@@ -120,11 +120,11 @@ pub fn find_memorytype_index(
 }
 
 pub struct ExampleBase {
-    pub instance: hephaistos::Instance,
-    pub surface: hephaistos::Surface,
-    pub adapter: hephaistos::Adapter,
-    pub device: hephaistos::Device,
-    pub present_queue: hephaistos::Queue,
+    pub instance: Arc<hephaistos::Instance>,
+    pub surface: Arc<hephaistos::Surface>,
+    pub adapter: Arc<hephaistos::Adapter>,
+    pub device: Arc<hephaistos::Device>,
+    pub present_queue: Arc<hephaistos::Queue>,
 
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,
@@ -200,7 +200,7 @@ impl ExampleBase {
             let (device, present_queue) = adapter.request_device();
 
             //let swapchain = instance.create_swapchain(&adapter, &device, &surface);
-            surface.create_swapchain(&device, &adapter);
+            surface.create_swapchain(device.clone(), adapter.clone());
 
             let pool_create_info = vk::CommandPoolCreateInfo::builder()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)

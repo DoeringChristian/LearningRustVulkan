@@ -6,8 +6,87 @@ use ash::{extensions::ext::DebugUtils, vk};
 use raw_window_handle::HasRawWindowHandle;
 use std::sync::Arc;
 
-impl Instance {
-    pub fn init(compatible_window: Option<&dyn HasRawWindowHandle>) -> Self {
+pub trait SharedInstance{
+    fn create_surface(&self, window_handle: &dyn HasRawWindowHandle) -> Arc<Surface>;
+    fn request_adapter(&self, desc: &AdapterDescriptor) -> Arc<Adapter>;
+}
+
+impl SharedInstance for Arc<Instance>{
+    fn create_surface(&self, window_handle: &dyn HasRawWindowHandle) -> Arc<Surface> {
+        unsafe {
+            let surface =
+                ash_window::create_surface(&self.entry, &self.instance, window_handle, None)
+                .unwrap();
+
+            let surface_loader = khr::Surface::new(&self.entry, &self.instance);
+
+            Arc::new(Surface{
+                surface,
+                surface_loader,
+                instance: self.clone(),
+                swapchain: None,
+            })
+        }
+    }
+
+    fn request_adapter(&self, desc: &AdapterDescriptor) -> Arc<Adapter> {
+        unsafe{
+            let pdevices = self.instance
+                .enumerate_physical_devices()
+                .expect("Physical device error");
+            let (pdevice, queue_family_index) = pdevices
+                .iter()
+                .filter_map(|pdevice| {
+                    Some(pdevice)
+                })
+                .filter_map(|pdevice| {
+                    self.instance
+                        .get_physical_device_queue_family_properties(*pdevice)
+                        .iter()
+                        .enumerate()
+                        .find_map(|(index, info)| {
+                            let supports_required =
+                                info.queue_flags.contains(desc.queue_flags) && 
+                                match desc.compatible_surface{
+                                    Some(surface) => {
+                                        surface.surface_loader.get_physical_device_surface_support(
+                                            *pdevice,
+                                            index as u32,
+                                            surface.surface,
+                                        ).unwrap()
+                                    },
+                                    None => true,
+                                };
+                            if supports_required {
+                                Some((*pdevice, index))
+                            } else {
+                                None
+                            }
+                        })
+                })
+            .min_by_key(|(pdevice, _)|{
+                match self.instance.get_physical_device_properties(*pdevice).device_type{
+                    vk::PhysicalDeviceType::DISCRETE_GPU => 0,
+                    vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
+                    vk::PhysicalDeviceType::VIRTUAL_GPU => 2,
+                    vk::PhysicalDeviceType::CPU => 3,
+                    vk::PhysicalDeviceType::OTHER => 4,
+                    _ => 5,
+                }
+            })
+            .expect("Couldn't find suitable device.");
+
+            Arc::new(Adapter{
+                pdevice,
+                queue_family_index: queue_family_index as u32,
+                instance: self.clone(),
+            })
+        }
+    }
+}
+
+impl Instance{
+    pub fn init(compatible_window: Option<&dyn HasRawWindowHandle>) -> Arc<Instance>{
         unsafe {
             let entry = match ash::Entry::load() {
                 Ok(entry) => entry,
@@ -78,92 +157,19 @@ impl Instance {
                 .create_debug_utils_messenger(&debug_info, None)
                 .unwrap();
 
-            Self(Arc::new(
-                    InstanceShared{
-                        instance,
-                        entry,
-                        debug_utils_loader: Some(debug_utils_loader),
-                        debug_call_back: Some(debug_call_back),
+            Arc::new(
+                Instance{
+                    instance,
+                    entry,
+                    debug_utils_loader: Some(debug_utils_loader),
+                    debug_call_back: Some(debug_call_back),
                 }
-            ))
-        }
-    }
-
-    pub fn create_surface(&self, window_handle: &dyn HasRawWindowHandle) -> Surface {
-        unsafe {
-            let surface =
-                ash_window::create_surface(&self.entry, &self.instance, window_handle, None)
-                .unwrap();
-
-            let surface_loader = khr::Surface::new(&self.entry, &self.instance);
-
-            Surface{
-                surface,
-                surface_loader,
-                instance: self.clone(),
-                swapchain: None,
-            }
-
-        }
-    }
-
-    pub fn request_adapter(&self, desc: &AdapterDescriptor) -> Adapter{
-        unsafe{
-            let pdevices = self.instance
-                .enumerate_physical_devices()
-                .expect("Physical device error");
-            let (pdevice, queue_family_index) = pdevices
-                .iter()
-                .filter_map(|pdevice| {
-                    Some(pdevice)
-                })
-                .filter_map(|pdevice| {
-                    self.instance
-                        .get_physical_device_queue_family_properties(*pdevice)
-                        .iter()
-                        .enumerate()
-                        .find_map(|(index, info)| {
-                            let supports_required =
-                                info.queue_flags.contains(desc.queue_flags) && 
-                                match desc.compatible_surface{
-                                    Some(surface) => {
-                                        surface.surface_loader.get_physical_device_surface_support(
-                                            *pdevice,
-                                            index as u32,
-                                            surface.surface,
-                                        ).unwrap()
-                                    },
-                                    None => true,
-                                };
-                            if supports_required {
-                                Some((*pdevice, index))
-                            } else {
-                                None
-                            }
-                        })
-                })
-            .min_by_key(|(pdevice, _)|{
-                match self.instance.get_physical_device_properties(*pdevice).device_type{
-                    vk::PhysicalDeviceType::DISCRETE_GPU => 0,
-                    vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
-                    vk::PhysicalDeviceType::VIRTUAL_GPU => 2,
-                    vk::PhysicalDeviceType::CPU => 3,
-                    vk::PhysicalDeviceType::OTHER => 4,
-                    _ => 5,
-                }
-            })
-            .expect("Couldn't find suitable device.");
-
-            Adapter{
-                pdevice,
-                queue_family_index: queue_family_index as u32,
-                instance: self.clone(),
-            }
+            )
         }
     }
 }
 
-impl Drop for InstanceShared{
+impl Drop for Instance{
     fn drop(&mut self) {
         unsafe{
             self.debug_utils_loader.as_ref().and_then(|d| {
@@ -189,12 +195,3 @@ impl Drop for Surface{
     }
 }
 
-/*
-impl Drop for Swapchain{
-    fn drop(&mut self) {
-        unsafe{
-            self.swapchain_loader.destroy_swapchain(self.swapchain, None);
-        }
-    }
-}
-*/
