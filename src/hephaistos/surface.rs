@@ -70,8 +70,8 @@ impl SharedSurface for Arc<Surface>{
             let images: Vec<Arc<Image>> = images.into_iter().enumerate().map(|(i, vk_image)|{
                 Arc::new(Image{
                     image: vk_image,
-                    desc: ImageDescriptor{
-                        image_type: vk::ImageType::TYPE_2D,
+                    desc: ImageDesc{
+                        image_type: ImageType::Tex2d,
                         usage: vk::ImageUsageFlags::STORAGE,
                         flags: vk::ImageCreateFlags::empty(),
                         format: vk::Format::B8G8R8A8_UNORM,
@@ -83,7 +83,8 @@ impl SharedSurface for Arc<Surface>{
                         tiling: vk::ImageTiling::OPTIMAL,
                         mip_levels: 1,
                         array_elements: 1,
-                    }
+                    },
+                    views: Mutex::new(FxHashMap::default()),
                 },
                 )
             }).collect();

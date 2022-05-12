@@ -132,8 +132,8 @@ pub struct ExampleBase {
     pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     //pub present_queue: vk::Queue,
 
-    pub present_images: Vec<vk::Image>,
-    pub present_image_views: Vec<vk::ImageView>,
+    //pub present_images: Vec<vk::Image>,
+    //pub present_image_views: Vec<vk::ImageView>,
 
     pub pool: vk::CommandPool,
     pub draw_command_buffer: vk::CommandBuffer,
@@ -142,9 +142,6 @@ pub struct ExampleBase {
     pub depth_image: vk::Image,
     pub depth_image_view: vk::ImageView,
     pub depth_image_memory: vk::DeviceMemory,
-
-    pub present_complete_semaphore: vk::Semaphore,
-    pub rendering_complete_semaphore: vk::Semaphore,
 
     pub draw_commands_reuse_fence: vk::Fence,
     pub setup_commands_reuse_fence: vk::Fence,
@@ -192,7 +189,7 @@ impl ExampleBase {
             let instance = hephaistos::Instance::init(Some(&window));
             let mut surface = instance.create_surface(&window);
 
-            let adapter = instance.request_adapter(&hephaistos::AdapterDescriptor{
+            let adapter = instance.request_adapter(&hephaistos::AdapterDesc{
                 compatible_surface: Some(&surface),
                 queue_flags: vk::QueueFlags::GRAPHICS,
             });
@@ -219,6 +216,7 @@ impl ExampleBase {
             let setup_command_buffer = command_buffers[0];
             let draw_command_buffer = command_buffers[1];
 
+            /*
             let present_images = surface.swapchain.as_ref().unwrap().swapchain_loader.get_swapchain_images(surface.swapchain.as_ref().unwrap().swapchain).unwrap();
             let present_image_views: Vec<vk::ImageView> = present_images
                 .iter()
@@ -243,6 +241,7 @@ impl ExampleBase {
                     device.create_image_view(&create_view_info, None).unwrap()
                 })
                 .collect();
+            */
             let device_memory_properties = instance.instance.get_physical_device_memory_properties(adapter.pdevice);
             let depth_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
@@ -335,7 +334,7 @@ impl ExampleBase {
                 .format(depth_image_create_info.format)
                 .view_type(vk::ImageViewType::TYPE_2D);
 
-            let depth_image_view = device
+            let depth_image_view = device.device
                 .create_image_view(&depth_image_view_info, None)
                 .unwrap();
 
@@ -356,15 +355,13 @@ impl ExampleBase {
                 device_memory_properties,
                 window,
                 present_queue,
-                present_images,
-                present_image_views,
+                //present_images,
+                //present_image_views,
                 pool,
                 draw_command_buffer,
                 setup_command_buffer,
                 depth_image,
                 depth_image_view,
-                present_complete_semaphore,
-                rendering_complete_semaphore,
                 draw_commands_reuse_fence,
                 setup_commands_reuse_fence,
                 surface,
@@ -379,19 +376,17 @@ impl Drop for ExampleBase {
         unsafe {
             self.device.device_wait_idle().unwrap();
             self.device
-                .destroy_semaphore(self.present_complete_semaphore, None);
-            self.device
-                .destroy_semaphore(self.rendering_complete_semaphore, None);
-            self.device
                 .destroy_fence(self.draw_commands_reuse_fence, None);
             self.device
                 .destroy_fence(self.setup_commands_reuse_fence, None);
             self.device.free_memory(self.depth_image_memory, None);
             self.device.destroy_image_view(self.depth_image_view, None);
             self.device.destroy_image(self.depth_image, None);
+            /*
             for &image_view in self.present_image_views.iter() {
                 self.device.destroy_image_view(image_view, None);
             }
+            */
             self.device.destroy_command_pool(self.pool, None);
         }
     }
@@ -456,6 +451,7 @@ fn main() {
             .create_render_pass(&renderpass_create_info, None)
             .unwrap();
 
+        /*
         let framebuffers: Vec<vk::Framebuffer> = base
             .present_image_views
             .iter()
@@ -473,6 +469,7 @@ fn main() {
                     .unwrap()
             })
             .collect();
+        */
 
         let index_buffer_data = [0u32, 1, 2];
         let index_buffer_info = vk::BufferCreateInfo::builder()
@@ -755,6 +752,11 @@ fn main() {
                 .unwrap();
             */
             let present_image = base.surface.acquire_next_image().unwrap();
+            let present_image_view = base.device.create_image_view(present_image.clone(), &ImageViewDesc{
+                base_mip_level: 0,
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                ..Default::default()
+            });
             let clear_values = [
                 vk::ClearValue {
                     color: vk::ClearColorValue {
@@ -768,10 +770,21 @@ fn main() {
                     },
                 },
             ];
+            let framebuffer_attachments = [present_image_view, base.depth_image_view];
+            let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
+                .render_pass(renderpass)
+                .attachments(&framebuffer_attachments)
+                .width(base.surface.swapchain.as_ref().unwrap().extent.width)
+                .height(base.surface.swapchain.as_ref().unwrap().extent.height)
+                .layers(1);
+
+            let framebuffer = base.device
+                .create_framebuffer(&frame_buffer_create_info, None)
+                .unwrap();
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
                 .render_pass(renderpass)
-                .framebuffer(framebuffers[present_image.image_index as usize])
+                .framebuffer(framebuffer)
                 .render_area(base.surface.swapchain.as_ref().unwrap().extent.into())
                 .clear_values(&clear_values);
 
@@ -820,7 +833,7 @@ fn main() {
                     // device.cmd_draw(draw_command_buffer, 3, 1, 0, 0);
                     device.cmd_end_render_pass(draw_command_buffer);
                 },
-            );
+                );
             //let mut present_info_err = mem::zeroed();
             let wait_semaphors = [present_image.rendering_finished_semaphore];
             let swapchains = [base.surface.swapchain.as_ref().unwrap().swapchain];
@@ -833,7 +846,9 @@ fn main() {
             base.surface.swapchain.as_ref().unwrap().swapchain_loader
                 .queue_present(base.present_queue.queue, &present_info)
                 .unwrap();
-        });
+
+            base.device.device.destroy_framebuffer(framebuffer, None);
+            });
 
         base.device.device_wait_idle().unwrap();
         for pipeline in graphics_pipelines {
@@ -848,9 +863,11 @@ fn main() {
         base.device.destroy_buffer(index_buffer, None);
         base.device.free_memory(vertex_input_buffer_memory, None);
         base.device.destroy_buffer(vertex_input_buffer, None);
+        /*
         for framebuffer in framebuffers {
             base.device.destroy_framebuffer(framebuffer, None);
         }
+        */
         base.device.destroy_render_pass(renderpass, None);
     }
 }

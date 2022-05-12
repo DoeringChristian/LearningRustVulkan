@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 pub trait SharedInstance{
     fn create_surface(&self, window_handle: &dyn HasRawWindowHandle) -> Arc<Surface>;
-    fn request_adapter(&self, desc: &AdapterDescriptor) -> Arc<Adapter>;
+    fn request_adapter(&self, desc: &AdapterDesc) -> Arc<Adapter>;
 }
 
 impl SharedInstance for Arc<Instance>{
@@ -29,7 +29,7 @@ impl SharedInstance for Arc<Instance>{
         }
     }
 
-    fn request_adapter(&self, desc: &AdapterDescriptor) -> Arc<Adapter> {
+    fn request_adapter(&self, desc: &AdapterDesc) -> Arc<Adapter> {
         unsafe{
             let pdevices = self.instance
                 .enumerate_physical_devices()

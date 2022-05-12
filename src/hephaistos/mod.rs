@@ -6,14 +6,16 @@ pub mod adapter;
 pub mod device;
 pub mod surface;
 pub mod swapchain;
+pub mod image;
 
 use fxhash::FxHashMap;
-pub use instance::*;
-pub use descriptors::*;
-pub use adapter::*;
-pub use device::*;
-pub use surface::*;
-pub use swapchain::*;
+pub use self::instance::*;
+pub use self::descriptors::*;
+pub use self::adapter::*;
+pub use self::device::*;
+pub use self::surface::*;
+pub use self::swapchain::*;
+pub use self::image::*;
 
 use std::ffi::{CStr, CString};
 
@@ -77,7 +79,10 @@ pub struct Swapchain{
     pub next_semaphore: Mutex<usize>,
 }
 
+#[derive(Deref, DerefMut)]
 pub struct SwapchainImage{
+    #[deref]
+    #[deref_mut]
     pub image: Arc<Image>,
     pub image_index: usize,
     pub acquire_semaphore: vk::Semaphore,
@@ -87,5 +92,11 @@ pub struct SwapchainImage{
 // TODO: Implement
 pub struct Image{
     pub image: vk::Image,
-    pub desc: ImageDescriptor,
+    pub desc: ImageDesc,
+    pub views: Mutex<FxHashMap<ImageViewDesc, vk::ImageView>>,
+}
+
+pub struct ImageView{
+    image: Arc<Image>,
+    desc: ImageViewDesc,
 }
