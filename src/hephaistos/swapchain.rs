@@ -43,6 +43,22 @@ impl Swapchain{
             }
         }
     }
+    pub fn present_image(&self, queue: &Queue, image: SwapchainImage){
+        unsafe{
+            let wait_semaphors = [image.rendering_finished_semaphore];
+            let swapchains = [self.swapchain];
+            let image_indices = [image.image_index as u32];
+            let present_info = vk::PresentInfoKHR::builder()
+                .wait_semaphores(&wait_semaphors)
+                .swapchains(&swapchains)
+                .image_indices(&image_indices);
+
+            self.swapchain_loader
+                .queue_present(queue.queue, &present_info)
+                .unwrap();
+
+            }
+    }
 }
 
 impl Drop for Swapchain{

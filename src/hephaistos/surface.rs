@@ -8,6 +8,7 @@ use std::sync::Arc;
 pub trait SharedSurface{
     fn create_swapchain(&mut self, device: Arc<Device>, adapter: Arc<Adapter>);
     fn acquire_next_image(&self) -> Option<SwapchainImage>;
+    fn present_image(&self, queue: &Queue, image: SwapchainImage);
 }
 
 impl SharedSurface for Arc<Surface>{
@@ -116,6 +117,8 @@ impl SharedSurface for Arc<Surface>{
     fn acquire_next_image(&self) -> Option<SwapchainImage> {
         self.swapchain.as_ref().unwrap().acquire_next_image()
     }
-    
+    fn present_image(&self, queue: &Queue, image: SwapchainImage) {
+        self.swapchain.as_ref().unwrap().present_image(queue, image)
+    }
 }
 

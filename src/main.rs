@@ -835,6 +835,7 @@ fn main() {
                 },
                 );
             //let mut present_info_err = mem::zeroed();
+            /*
             let wait_semaphors = [present_image.rendering_finished_semaphore];
             let swapchains = [base.surface.swapchain.as_ref().unwrap().swapchain];
             let image_indices = [present_image.image_index as u32];
@@ -846,6 +847,9 @@ fn main() {
             base.surface.swapchain.as_ref().unwrap().swapchain_loader
                 .queue_present(base.present_queue.queue, &present_info)
                 .unwrap();
+            */
+
+            base.surface.present_image(&base.present_queue, present_image);
 
             base.device.device.destroy_framebuffer(framebuffer, None);
             });
