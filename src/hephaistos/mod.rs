@@ -5,6 +5,7 @@ pub mod descriptors;
 pub mod adapter;
 pub mod device;
 pub mod surface;
+pub mod swapchain;
 
 use fxhash::FxHashMap;
 pub use instance::*;
@@ -12,6 +13,7 @@ pub use descriptors::*;
 pub use adapter::*;
 pub use device::*;
 pub use surface::*;
+pub use swapchain::*;
 
 use std::ffi::{CStr, CString};
 
@@ -69,11 +71,15 @@ pub struct Swapchain{
     pub surface_format: vk::SurfaceFormatKHR,
     pub extent: vk::Extent2D,
     pub device: Arc<Device>,
+    pub images: Vec<Arc<Image>>,
+    pub acquire_semaphores: Vec<vk::Semaphore>,
+    pub rendering_finished_semaphores: Vec<vk::Semaphore>,
+    pub next_semaphore: Mutex<usize>,
 }
 
 pub struct SwapchainImage{
     pub image: Arc<Image>,
-    pub image_index: u32,
+    pub image_index: usize,
     pub acquire_semaphore: vk::Semaphore,
     pub rendering_finished_semaphore: vk::Semaphore,
 }

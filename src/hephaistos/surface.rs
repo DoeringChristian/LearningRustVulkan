@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 pub trait SharedSurface{
     fn create_swapchain(&mut self, device: Arc<Device>, adapter: Arc<Adapter>);
+    fn acquire_next_image(&self) -> Option<SwapchainImage>;
 }
 
 impl SharedSurface for Arc<Surface>{
@@ -66,7 +67,7 @@ impl SharedSurface for Arc<Surface>{
                 .unwrap();
 
             let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
-            let images: Vec<Arc<Image>> = images.into_iter().map(|vk_image|{
+            let images: Vec<Arc<Image>> = images.into_iter().enumerate().map(|(i, vk_image)|{
                 Arc::new(Image{
                     image: vk_image,
                     desc: ImageDescriptor{
@@ -83,7 +84,15 @@ impl SharedSurface for Arc<Surface>{
                         mip_levels: 1,
                         array_elements: 1,
                     }
-                })
+                },
+                )
+            }).collect();
+
+            let acquire_semaphores: Vec<vk::Semaphore> = images.iter().map(|_|{
+                device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None).unwrap()
+            }).collect();
+            let present_complete_semaphores: Vec<vk::Semaphore> = images.iter().map(|_|{
+                device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None).unwrap()
             }).collect();
 
             //assert_eq!(desired_image_count, images.len() as u32);
@@ -93,10 +102,19 @@ impl SharedSurface for Arc<Surface>{
                 swapchain,
                 swapchain_loader,
                 surface_format,
+                images,
+                acquire_semaphores,
+                rendering_finished_semaphores: present_complete_semaphores,
                 extent,
                 device: device.clone(),
+                next_semaphore: Mutex::new(0),
             })
         }
     }
+
+    fn acquire_next_image(&self) -> Option<SwapchainImage> {
+        self.swapchain.as_ref().unwrap().acquire_next_image()
+    }
+    
 }
 

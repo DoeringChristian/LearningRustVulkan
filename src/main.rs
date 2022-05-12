@@ -741,6 +741,7 @@ fn main() {
         let graphic_pipeline = graphics_pipelines[0];
 
         base.render_loop(|| {
+            /*
             let (present_index, _) = base
                 .surface
                 .swapchain.as_ref().unwrap()
@@ -752,6 +753,8 @@ fn main() {
                     vk::Fence::null(),
                 )
                 .unwrap();
+            */
+            let present_image = base.surface.acquire_next_image().unwrap();
             let clear_values = [
                 vk::ClearValue {
                     color: vk::ClearColorValue {
@@ -768,7 +771,7 @@ fn main() {
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
                 .render_pass(renderpass)
-                .framebuffer(framebuffers[present_index as usize])
+                .framebuffer(framebuffers[present_image.image_index as usize])
                 .render_area(base.surface.swapchain.as_ref().unwrap().extent.into())
                 .clear_values(&clear_values);
 
@@ -778,8 +781,8 @@ fn main() {
                 base.draw_commands_reuse_fence,
                 base.present_queue.queue,
                 &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT],
-                &[base.present_complete_semaphore],
-                &[base.rendering_complete_semaphore],
+                &[present_image.acquire_semaphore],
+                &[present_image.rendering_finished_semaphore],
                 |device, draw_command_buffer| {
                     device.cmd_begin_render_pass(
                         draw_command_buffer,
@@ -819,9 +822,9 @@ fn main() {
                 },
             );
             //let mut present_info_err = mem::zeroed();
-            let wait_semaphors = [base.rendering_complete_semaphore];
+            let wait_semaphors = [present_image.rendering_finished_semaphore];
             let swapchains = [base.surface.swapchain.as_ref().unwrap().swapchain];
-            let image_indices = [present_index];
+            let image_indices = [present_image.image_index as u32];
             let present_info = vk::PresentInfoKHR::builder()
                 .wait_semaphores(&wait_semaphors) // &base.rendering_complete_semaphore)
                 .swapchains(&swapchains)
