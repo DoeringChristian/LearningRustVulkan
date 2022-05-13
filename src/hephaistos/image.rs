@@ -6,8 +6,38 @@ use raw_window_handle::HasRawWindowHandle;
 use std::borrow::BorrowMut;
 use std::sync::Arc;
 
-impl Image{
+impl ImageView{
+}
 
+impl Image{
+    pub fn get_view_create_info(&self, desc: &ImageViewDesc) -> vk::ImageViewCreateInfo{
+        vk::ImageViewCreateInfo {
+            format: self.desc.format,
+            components: vk::ComponentMapping {
+                r: vk::ComponentSwizzle::R,
+                g: vk::ComponentSwizzle::G,
+                b: vk::ComponentSwizzle::B,
+                a: vk::ComponentSwizzle::A,
+            },
+            view_type: desc.view_type.unwrap_or_else(|| {
+                convert_image_type_to_view_type(self.desc.image_type)
+            }),
+            subresource_range: vk::ImageSubresourceRange {
+                aspect_mask: desc.aspect_mask,
+                base_mip_level: desc.base_mip_level,
+                level_count: desc
+                    .level_count
+                    .unwrap_or(self.desc.mip_levels as u32),
+                    base_array_layer: 0,
+                    layer_count: match self.desc.image_type {
+                        ImageType::Cube | ImageType::CubeArray => 6,
+                        _ => 1,
+                    },
+            },
+            image: self.image,
+            ..Default::default()
+        }
+    }
 }
 
 impl Drop for Image{

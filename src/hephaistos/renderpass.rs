@@ -10,13 +10,13 @@ impl RenderPass{
 
         //let framebuffer = self.framebuffer_cache.get_or_create(&self.device, key).unwrap();
         let color_attachment_descs = desc.color_attachments.iter().map(|a|{
-            a.image_desc
+            a.fb_attachment_desc
         }).collect::<Vec<_>>();
         let framebuffer_key = FramebufferCacheKey::new(
             desc.area.extent,
             color_attachment_descs.iter(),
             desc.depth_attachment.map(|a|{
-                &a.image_desc
+                &a.fb_attachment_desc
             })
         );
 

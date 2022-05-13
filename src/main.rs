@@ -717,14 +717,16 @@ fn main() {
 
         base.render_loop(|| {
             let present_image = base.surface.acquire_next_image().unwrap();
-            let present_image_view = base.device.create_image_view(&present_image, &ImageViewDesc{
+            let present_image_view = base.device.create_image_view(&present_image, ImageViewDesc{
                 base_mip_level: 0,
                 aspect_mask: vk::ImageAspectFlags::COLOR,
+                level_count: Some(1),
                 ..Default::default()
             });
-            let depth_image_view = base.device.create_image_view(&base.depth_image, &ImageViewDesc{
+            let depth_image_view = base.device.create_image_view(&base.depth_image, ImageViewDesc{
                 aspect_mask: vk::ImageAspectFlags::DEPTH,
                 base_mip_level: 0,
+                level_count: Some(1),
                 ..Default::default()
             });
             let clear_values = [

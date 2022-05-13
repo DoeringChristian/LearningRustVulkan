@@ -72,28 +72,36 @@ impl SharedDevice for Arc<Device> {
             device: self.clone(),
         })
     }
-    fn create_image(&self, desc: &ImageDesc, data: Vec<ImageSubresourceData>) -> Image{
-        unsafe{
+    fn create_image(&self, desc: &ImageDesc, data: Vec<ImageSubresourceData>) -> Image {
+        unsafe {
             let create_info = get_image_create_info(desc, !data.is_empty());
-            
-            let image = self.device.create_image(&create_info, None).expect("Image Creation Error");
+
+            let image = self
+                .device
+                .create_image(&create_info, None)
+                .expect("Image Creation Error");
 
             let requirements = self.device.get_image_memory_requirements(image);
 
-            let allocation = self.global_allocator.lock().unwrap()
-                .allocate(&AllocationCreateDesc{
+            let allocation = self
+                .global_allocator
+                .lock()
+                .unwrap()
+                .allocate(&AllocationCreateDesc {
                     name: "image",
                     requirements,
                     location: MemoryLocation::GpuOnly,
                     linear: false,
-                }).expect("Alloocation Error");
+                })
+                .expect("Alloocation Error");
 
-            self.device.bind_image_memory(image, allocation.memory(), allocation.offset())
+            self.device
+                .bind_image_memory(image, allocation.memory(), allocation.offset())
                 .expect("Image bind error");
 
             // TODO: load image into memory.
 
-            Image{
+            Image {
                 image,
                 desc: *desc,
                 views: Mutex::new(FxHashMap::default()),
@@ -104,13 +112,18 @@ impl SharedDevice for Arc<Device> {
 }
 
 impl Device {
-
-    pub fn create_image_view(&self, image: &Image, desc: &ImageViewDesc) -> ImageView {
+    pub fn create_image_view(&self, image: &Image, desc: ImageViewDesc) -> ImageView {
         unsafe {
             let mut views = image.views.lock().unwrap();
+            let fb_attachment_desc = FramebufferAttachmentDesc {
+                flgas: image.desc.flags,
+                usage: image.desc.usage,
+                layer_count: desc.level_count.unwrap_or(image.desc.mip_levels as u32),
+            };
             views
-                .entry(*desc)
+                .entry(desc)
                 .or_insert(ImageView {
+                    fb_attachment_desc,
                     view: self
                         .device
                         .create_image_view(
@@ -131,22 +144,22 @@ impl Device {
                                     level_count: desc
                                         .level_count
                                         .unwrap_or(image.desc.mip_levels as u32),
-                                        base_array_layer: 0,
-                                        layer_count: match image.desc.image_type {
-                                            ImageType::Cube | ImageType::CubeArray => 6,
-                                            _ => 1,
-                                        },
+                                    base_array_layer: 0,
+                                    layer_count: match image.desc.image_type {
+                                        ImageType::Cube | ImageType::CubeArray => 6,
+                                        _ => 1,
+                                    },
                                 },
                                 image: image.image,
                                 ..Default::default()
                             },
                             None,
-                            )
-                                .unwrap(),
-                                desc: *desc,
-                                image_desc: image.desc,
+                        )
+                        .unwrap(),
+                    desc,
+                    image_desc: image.desc,
                 })
-            .clone()
+                .clone()
         }
     }
 }

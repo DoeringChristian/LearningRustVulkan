@@ -113,9 +113,10 @@ pub struct ImageSubresourceData<'a>{
 pub struct ImageView{
     #[deref]
     #[deref_mut]
-    view: vk::ImageView,
-    desc: ImageViewDesc,
-    image_desc: ImageDesc,
+    pub view: vk::ImageView,
+    pub desc: ImageViewDesc,
+    pub fb_attachment_desc: FramebufferAttachmentDesc,
+    pub image_desc: ImageDesc,
 }
 
 pub const MAX_COLOR_ATTACHMENTS: usize = 8;
@@ -131,7 +132,7 @@ pub struct FramebufferCache{
 #[derive(Eq, PartialEq, Hash)]
 pub struct FramebufferCacheKey{
     pub extent: vk::Extent2D,
-    pub attachments: ArrayVec<(vk::ImageUsageFlags, vk::ImageCreateFlags), MAX_COLOR_ATTACHMENTS>,
+    pub attachments: ArrayVec<FramebufferAttachmentDesc, MAX_COLOR_ATTACHMENTS>,
 }
 
 #[derive(Deref, DerefMut)]

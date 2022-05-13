@@ -78,3 +78,9 @@ pub struct RenderPassBeginnDesc<'a>{
     pub clear_values: &'a [vk::ClearValue],
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct FramebufferAttachmentDesc{
+    pub flgas: vk::ImageCreateFlags,
+    pub usage: vk::ImageUsageFlags,
+    pub layer_count: u32,
+}

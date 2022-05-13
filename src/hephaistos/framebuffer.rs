@@ -37,13 +37,13 @@ use std::sync::Arc;
 impl FramebufferCacheKey {
     pub fn new<'a>(
         extent: vk::Extent2D,
-        color_attachments: impl Iterator<Item = &'a ImageDesc>,
-        depth_stencil_attachment: Option<&'a ImageDesc>,
+        color_attachments: impl Iterator<Item = &'a FramebufferAttachmentDesc>,
+        depth_stencil_attachment: Option<&'a FramebufferAttachmentDesc>,
     ) -> Self {
         let color_attachments = color_attachments
             .chain(depth_stencil_attachment.into_iter())
             .copied()
-            .map(|attachment| (attachment.usage, attachment.flags))
+            .map(|attachment| attachment)
             .collect();
 
         Self {
@@ -52,6 +52,7 @@ impl FramebufferCacheKey {
         }
     }
 }
+/*
 impl<'a> From<RenderPassBeginnDesc<'a>> for FramebufferCacheKey{
     fn from(src: RenderPassBeginnDesc) -> Self {
         let attachments = src.color_attachments.iter()
@@ -65,6 +66,7 @@ impl<'a> From<RenderPassBeginnDesc<'a>> for FramebufferCacheKey{
         }
     }
 }
+*/
 
 impl FramebufferCache {
     pub fn new(
@@ -104,13 +106,14 @@ impl FramebufferCache {
                     .attachment_desc
                     .iter()
                     .zip(key.attachments.iter())
-                    .map(|(desc, (usage, flags))| {
+                    .map(|(desc, attachemnt_desc)| {
                         vk::FramebufferAttachmentImageInfoKHR::builder()
                             .width(key.extent.width)
                             .height(key.extent.height)
-                            .flags(*flags)
+                            .flags(attachemnt_desc.flgas)
                             .view_formats(&[desc.format])
-                            .usage(*usage)
+                            .usage(attachemnt_desc.usage)
+                            .layer_count(attachemnt_desc.layer_count)
                             .build()
                     })
                     .collect();
