@@ -71,8 +71,8 @@ impl<'a> From<RenderPassBeginnDesc<'a>> for FramebufferCacheKey{
 impl FramebufferCache {
     pub fn new(
         render_pass: vk::RenderPass,
-        color_attachments: &[RenderPassAttachmentDesc],
-        depth_attachment: Option<RenderPassAttachmentDesc>,
+        color_attachments: &[vk::AttachmentDescription],
+        depth_attachment: Option<vk::AttachmentDescription>,
     ) -> Self {
         let mut attachment_desc = ArrayVec::new();
 

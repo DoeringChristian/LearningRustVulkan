@@ -430,6 +430,7 @@ fn main() {
             .unwrap();
         */
 
+        /*
         let rpass = base.device.create_render_pass(&RenderPassDesc{
             color_attachments: &[
                 RenderPassAttachmentDesc{
@@ -446,6 +447,29 @@ fn main() {
                 load_op: vk::AttachmentLoadOp::CLEAR,
                 store_op: vk::AttachmentStoreOp::default(),
                 layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            })
+        });
+        */
+
+        let rpass = base.device.create_render_pass(&RenderPassDesc{
+            color_attachments: &[
+                vk::AttachmentDescription{
+                    format: base.surface.swapchain.as_ref().unwrap().surface_format.format,
+                    samples: vk::SampleCountFlags::TYPE_1,
+                    load_op: vk::AttachmentLoadOp::CLEAR,
+                    store_op: vk::AttachmentStoreOp::STORE,
+                    final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
+                    ..Default::default()
+                }
+            ],
+            depth_attachment: Some(vk::AttachmentDescription{
+                format: vk::Format::D16_UNORM,
+                samples: vk::SampleCountFlags::TYPE_1,
+                load_op: vk::AttachmentLoadOp::CLEAR,
+                store_op: vk::AttachmentStoreOp::default(),
+                initial_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                final_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                ..Default::default()
             })
         });
 

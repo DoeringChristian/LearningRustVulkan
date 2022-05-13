@@ -73,9 +73,9 @@ impl SharedSurface for Arc<Surface>{
                     image: vk_image,
                     desc: ImageDesc{
                         image_type: ImageType::Tex2d,
-                        usage: vk::ImageUsageFlags::STORAGE,
+                        usage: vk::ImageUsageFlags::COLOR_ATTACHMENT,
                         flags: vk::ImageCreateFlags::empty(),
-                        format: vk::Format::B8G8R8A8_UNORM,
+                        format: vk::Format::B8G8R8A8_SRGB,
                         extent: vk::Extent3D{
                             width: extent.width,
                             height: extent.height,

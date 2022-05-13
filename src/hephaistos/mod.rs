@@ -124,7 +124,7 @@ pub const MAX_COLOR_ATTACHMENTS: usize = 8;
 
 pub struct FramebufferCache{
     entries: Mutex<FxHashMap<FramebufferCacheKey, vk::Framebuffer>>,
-    attachment_desc: ArrayVec<RenderPassAttachmentDesc, MAX_COLOR_ATTACHMENTS>,
+    attachment_desc: ArrayVec<vk::AttachmentDescription, MAX_COLOR_ATTACHMENTS>,
     render_pass: vk::RenderPass,
     color_attachment_count: usize,
 }

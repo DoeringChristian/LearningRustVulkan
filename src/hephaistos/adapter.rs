@@ -13,9 +13,17 @@ pub trait SharedAdapter{
 impl SharedAdapter for Arc<Adapter>{
     fn request_device(&self) -> (Arc<Device>, Arc<Queue>) {
         unsafe{
+            let device_extension_names_raw = [
+                khr::Swapchain::name().as_ptr(),
+                vk::KhrImagelessFramebufferFn::name().as_ptr(),
+                vk::KhrBufferDeviceAddressFn::name().as_ptr(),
+            ];
 
+            let mut buffer_device_address_feature = vk::PhysicalDeviceBufferDeviceAddressFeatures::default();
+            let mut features2 = vk::PhysicalDeviceFeatures2::builder()
+                .push_next(&mut buffer_device_address_feature)
+                .build();
 
-            let device_extension_names_raw = [khr::Swapchain::name().as_ptr()];
             let features = vk::PhysicalDeviceFeatures {
                 shader_clip_distance: 1,
                 ..Default::default()
@@ -29,7 +37,8 @@ impl SharedAdapter for Arc<Adapter>{
             let device_create_info = vk::DeviceCreateInfo::builder()
                 .queue_create_infos(std::slice::from_ref(&queue_info))
                 .enabled_extension_names(&device_extension_names_raw)
-                .enabled_features(&features);
+                //.enabled_features(&features)
+                .push_next(&mut features2);
 
             let device: ash::Device = self.instance.instance
                 .create_device(self.pdevice, &device_create_info, None)

@@ -40,13 +40,18 @@ pub struct ImageViewDesc{
     pub level_count: Option<u32>,
 }
 
+/*
 #[derive(Default, Copy, Clone)]
 pub struct RenderPassAttachmentDesc{
-    pub format: vk::Format,
-    pub load_op: vk::AttachmentLoadOp,
-    pub store_op: vk::AttachmentStoreOp,
-    pub samples: vk::SampleCountFlags,
-    pub layout: vk::ImageLayout,
+    pub flags:            vk::AttachmentDescriptionFlags,
+    pub format:           vk::Format,
+    pub samples:          vk::SampleCountFlags,
+    pub load_op:          vk::AttachmentLoadOp,
+    pub store_op:         vk::AttachmentStoreOp,
+    pub stencil_load_op:  vk::AttachmentLoadOp,
+    pub stencil_store_op: vk::AttachmentStoreOp,
+    pub initial_layout:   vk::ImageLayout,
+    pub final_layout:     vk::ImageLayout,
 }
 
 impl RenderPassAttachmentDesc{
@@ -65,10 +70,11 @@ impl RenderPassAttachmentDesc{
         }
     }
 }
+*/
 
 pub struct RenderPassDesc<'a>{
-    pub color_attachments: &'a [RenderPassAttachmentDesc],
-    pub depth_attachment: Option<RenderPassAttachmentDesc>,
+    pub color_attachments: &'a [vk::AttachmentDescription],
+    pub depth_attachment: Option<vk::AttachmentDescription>,
 }
 
 pub struct RenderPassBeginnDesc<'a>{

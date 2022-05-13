@@ -16,29 +16,25 @@ impl SharedDevice for Arc<Device> {
             .color_attachments
             .iter()
             .map(|a| {
-                a.to_vk(
-                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                )
+                *a
             })
             .chain(desc.depth_attachment.as_ref().map(|a| {
-                a.to_vk(
-                    vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
-                    vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
-                )
+                *a
             }))
             .collect::<Vec<_>>();
 
         let color_attachment_refs = (0..desc.color_attachments.len() as u32)
             .map(|attachment| vk::AttachmentReference {
                 attachment,
-                layout: desc.color_attachments[attachment as usize].layout,
+                layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                //layout: desc.color_attachments[attachment as usize].initial_layout,
             })
             .collect::<Vec<_>>();
 
         let depth_attachment_ref = vk::AttachmentReference {
             attachment: desc.color_attachments.len() as u32,
-            layout: desc.depth_attachment.unwrap().layout,
+            layout: vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+            //layout: desc.depth_attachment.unwrap().initial_layout,
         };
 
         let mut subpass_description = vk::SubpassDescription::builder()
