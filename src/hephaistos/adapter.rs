@@ -2,6 +2,7 @@
 use super::*;
 use ash::extensions::khr;
 use ash::{extensions::ext::DebugUtils, vk};
+use gpu_allocator::AllocatorDebugSettings;
 use raw_window_handle::HasRawWindowHandle;
 use std::sync::Arc;
 
@@ -36,9 +37,26 @@ impl SharedAdapter for Arc<Adapter>{
 
             let queue = device.get_device_queue(self.queue_family_index as u32, 0);
 
+            let global_allocator = Allocator::new(&AllocatorCreateDesc{
+                instance: self.instance.instance.clone(),
+                device: device.clone(),
+                physical_device: self.pdevice,
+                debug_settings: AllocatorDebugSettings{
+                    log_leaks_on_shutdown: false,
+                    log_memory_information: true,
+                    log_allocations: true,
+                    ..Default::default()
+                },
+                buffer_device_address: true,
+            }).unwrap();
+
+            let global_allocator = Arc::new(Mutex::new(global_allocator));
+
             let device = Arc::new(Device{
+                global_allocator,
                 device,
                 instance: self.instance.clone(),
+                adapter: self.clone(),
             });
 
             let queue = Arc::new(Queue{

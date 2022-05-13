@@ -7,7 +7,10 @@ pub mod device;
 pub mod surface;
 pub mod swapchain;
 pub mod image;
+pub mod framebuffer;
+pub mod renderpass;
 
+use arrayvec::ArrayVec;
 use fxhash::FxHashMap;
 pub use self::instance::*;
 pub use self::descriptors::*;
@@ -16,6 +19,8 @@ pub use self::device::*;
 pub use self::surface::*;
 pub use self::swapchain::*;
 pub use self::image::*;
+pub use self::framebuffer::*;
+pub use self::renderpass::*;
 
 use std::ffi::{CStr, CString};
 
@@ -55,7 +60,8 @@ pub struct Device{
     #[deref_mut]
     pub device: ash::Device,
     pub instance: Arc<Instance>,
-    //pub global_allocator: Allocator,
+    pub adapter: Arc<Adapter>,
+    pub global_allocator: Arc<Mutex<Allocator>>,
 }
 
 #[derive(Deref, DerefMut)]
@@ -93,10 +99,46 @@ pub struct SwapchainImage{
 pub struct Image{
     pub image: vk::Image,
     pub desc: ImageDesc,
-    pub views: Mutex<FxHashMap<ImageViewDesc, vk::ImageView>>,
+    pub views: Mutex<FxHashMap<ImageViewDesc, ImageView>>,
+    pub device: Arc<Device>,
 }
 
+pub struct ImageSubresourceData<'a>{
+    pub data: &'a [u8],
+    pub row_pitch: usize,
+    pub slice_pitch: usize,
+}
+
+#[derive(Deref, DerefMut, Clone)]
 pub struct ImageView{
-    image: Arc<Image>,
+    #[deref]
+    #[deref_mut]
+    view: vk::ImageView,
     desc: ImageViewDesc,
+    image_desc: ImageDesc,
+}
+
+pub const MAX_COLOR_ATTACHMENTS: usize = 8;
+
+
+pub struct FramebufferCache{
+    entries: Mutex<FxHashMap<FramebufferCacheKey, vk::Framebuffer>>,
+    attachment_desc: ArrayVec<RenderPassAttachmentDesc, MAX_COLOR_ATTACHMENTS>,
+    render_pass: vk::RenderPass,
+    color_attachment_count: usize,
+}
+
+#[derive(Eq, PartialEq, Hash)]
+pub struct FramebufferCacheKey{
+    pub extent: vk::Extent2D,
+    pub attachments: ArrayVec<(vk::ImageUsageFlags, vk::ImageCreateFlags), MAX_COLOR_ATTACHMENTS>,
+}
+
+#[derive(Deref, DerefMut)]
+pub struct RenderPass{
+    #[deref]
+    #[deref_mut]
+    pub rpass: vk::RenderPass,
+    pub framebuffer_cache: FramebufferCache,
+    pub device: Arc<Device>,
 }

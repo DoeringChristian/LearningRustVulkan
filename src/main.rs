@@ -139,8 +139,8 @@ pub struct ExampleBase {
     pub draw_command_buffer: vk::CommandBuffer,
     pub setup_command_buffer: vk::CommandBuffer,
 
-    pub depth_image: vk::Image,
-    pub depth_image_view: vk::ImageView,
+    pub depth_image: hephaistos::Image,
+    //pub depth_image_view: vk::ImageView,
     pub depth_image_memory: vk::DeviceMemory,
 
     pub draw_commands_reuse_fence: vk::Fence,
@@ -216,32 +216,6 @@ impl ExampleBase {
             let setup_command_buffer = command_buffers[0];
             let draw_command_buffer = command_buffers[1];
 
-            /*
-            let present_images = surface.swapchain.as_ref().unwrap().swapchain_loader.get_swapchain_images(surface.swapchain.as_ref().unwrap().swapchain).unwrap();
-            let present_image_views: Vec<vk::ImageView> = present_images
-                .iter()
-                .map(|&image| {
-                    let create_view_info = vk::ImageViewCreateInfo::builder()
-                        .view_type(vk::ImageViewType::TYPE_2D)
-                        .format(surface.swapchain.as_ref().unwrap().surface_format.format)
-                        .components(vk::ComponentMapping {
-                            r: vk::ComponentSwizzle::R,
-                            g: vk::ComponentSwizzle::G,
-                            b: vk::ComponentSwizzle::B,
-                            a: vk::ComponentSwizzle::A,
-                        })
-                        .subresource_range(vk::ImageSubresourceRange {
-                            aspect_mask: vk::ImageAspectFlags::COLOR,
-                            base_mip_level: 0,
-                            level_count: 1,
-                            base_array_layer: 0,
-                            layer_count: 1,
-                        })
-                        .image(image);
-                    device.create_image_view(&create_view_info, None).unwrap()
-                })
-                .collect();
-            */
             let device_memory_properties = instance.instance.get_physical_device_memory_properties(adapter.pdevice);
             let depth_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
@@ -254,7 +228,7 @@ impl ExampleBase {
                 .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
-            let depth_image = device.create_image(&depth_image_create_info, None).unwrap();
+            let depth_image = device.device.create_image(&depth_image_create_info, None).unwrap();
             let depth_image_memory_req = device.get_image_memory_requirements(depth_image);
             let depth_image_memory_index = find_memorytype_index(
                 &depth_image_memory_req,
@@ -274,6 +248,18 @@ impl ExampleBase {
             device
                 .bind_image_memory(depth_image, depth_image_memory, 0)
                 .expect("Unable to bind depth image memory");
+
+            let depth_image = device.create_image(&ImageDesc{
+                image_type: ImageType::Tex2d,
+                usage: vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                flags: vk::ImageCreateFlags::empty(),
+                format: vk::Format::D16_UNORM,
+                extent: surface.swapchain.as_ref().unwrap().extent.into(),
+                tiling: vk::ImageTiling::OPTIMAL,
+                mip_levels: 1,
+                array_elements: 1,
+            },
+            Vec::new());
 
             let fence_create_info =
                 vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
@@ -295,7 +281,7 @@ impl ExampleBase {
                 &[],
                 |device, setup_command_buffer| {
                     let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-                        .image(depth_image)
+                        .image(depth_image.image)
                         .dst_access_mask(
                             vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
                                 | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
@@ -322,6 +308,7 @@ impl ExampleBase {
                 },
             );
 
+            /*
             let depth_image_view_info = vk::ImageViewCreateInfo::builder()
                 .subresource_range(
                     vk::ImageSubresourceRange::builder()
@@ -337,15 +324,7 @@ impl ExampleBase {
             let depth_image_view = device.device
                 .create_image_view(&depth_image_view_info, None)
                 .unwrap();
-
-            let semaphore_create_info = vk::SemaphoreCreateInfo::default();
-
-            let present_complete_semaphore = device
-                .create_semaphore(&semaphore_create_info, None)
-                .unwrap();
-            let rendering_complete_semaphore = device
-                .create_semaphore(&semaphore_create_info, None)
-                .unwrap();
+            */
 
             ExampleBase {
                 event_loop: RefCell::new(event_loop),
@@ -361,7 +340,7 @@ impl ExampleBase {
                 draw_command_buffer,
                 setup_command_buffer,
                 depth_image,
-                depth_image_view,
+                //depth_image_view,
                 draw_commands_reuse_fence,
                 setup_commands_reuse_fence,
                 surface,
@@ -380,8 +359,6 @@ impl Drop for ExampleBase {
             self.device
                 .destroy_fence(self.setup_commands_reuse_fence, None);
             self.device.free_memory(self.depth_image_memory, None);
-            self.device.destroy_image_view(self.depth_image_view, None);
-            self.device.destroy_image(self.depth_image, None);
             /*
             for &image_view in self.present_image_views.iter() {
                 self.device.destroy_image_view(image_view, None);
@@ -401,6 +378,7 @@ struct Vertex {
 fn main() {
     unsafe {
         let base = ExampleBase::new(800, 600);
+        /*
         let renderpass_attachments = [
             vk::AttachmentDescription {
                 format: base.surface.swapchain.as_ref().unwrap().surface_format.format,
@@ -447,29 +425,29 @@ fn main() {
             .dependencies(&dependencies);
 
         let renderpass = base
-            .device
+            .device.device
             .create_render_pass(&renderpass_create_info, None)
             .unwrap();
-
-        /*
-        let framebuffers: Vec<vk::Framebuffer> = base
-            .present_image_views
-            .iter()
-            .map(|&present_image_view| {
-                let framebuffer_attachments = [present_image_view, base.depth_image_view];
-                let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
-                    .render_pass(renderpass)
-                    .attachments(&framebuffer_attachments)
-                    .width(base.surface.swapchain.as_ref().unwrap().extent.width)
-                    .height(base.surface.swapchain.as_ref().unwrap().extent.height)
-                    .layers(1);
-
-                base.device
-                    .create_framebuffer(&frame_buffer_create_info, None)
-                    .unwrap()
-            })
-            .collect();
         */
+
+        let rpass = base.device.create_render_pass(&RenderPassDesc{
+            color_attachments: &[
+                RenderPassAttachmentDesc{
+                    format: base.surface.swapchain.as_ref().unwrap().surface_format.format,
+                    samples: vk::SampleCountFlags::TYPE_1,
+                    load_op: vk::AttachmentLoadOp::CLEAR,
+                    store_op: vk::AttachmentStoreOp::STORE,
+                    layout: vk::ImageLayout::PRESENT_SRC_KHR,
+                },
+            ],
+            depth_attachment: Some(RenderPassAttachmentDesc{
+                format: vk::Format::D16_UNORM,
+                samples: vk::SampleCountFlags::TYPE_1,
+                load_op: vk::AttachmentLoadOp::CLEAR,
+                store_op: vk::AttachmentStoreOp::default(),
+                layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            })
+        });
 
         let index_buffer_data = [0u32, 1, 2];
         let index_buffer_info = vk::BufferCreateInfo::builder()
@@ -484,7 +462,7 @@ fn main() {
             &base.device_memory_properties,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         )
-        .expect("Unable to find suitable memorytype for the index buffer.");
+            .expect("Unable to find suitable memorytype for the index buffer.");
 
         let index_allocate_info = vk::MemoryAllocateInfo {
             allocation_size: index_buffer_memory_req.size,
@@ -536,7 +514,7 @@ fn main() {
             &base.device_memory_properties,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         )
-        .expect("Unable to find suitable memorytype for the vertex buffer.");
+            .expect("Unable to find suitable memorytype for the vertex buffer.");
 
         let vertex_buffer_allocate_info = vk::MemoryAllocateInfo {
             allocation_size: vertex_input_buffer_memory_req.size,
@@ -724,7 +702,7 @@ fn main() {
             .color_blend_state(&color_blend_state)
             .dynamic_state(&dynamic_state_info)
             .layout(pipeline_layout)
-            .render_pass(renderpass);
+            .render_pass(rpass.rpass);
 
         let graphics_pipelines = base
             .device
@@ -738,23 +716,15 @@ fn main() {
         let graphic_pipeline = graphics_pipelines[0];
 
         base.render_loop(|| {
-            /*
-            let (present_index, _) = base
-                .surface
-                .swapchain.as_ref().unwrap()
-                .swapchain_loader
-                .acquire_next_image(
-                    base.surface.swapchain.as_ref().unwrap().swapchain,
-                    std::u64::MAX,
-                    base.present_complete_semaphore,
-                    vk::Fence::null(),
-                )
-                .unwrap();
-            */
             let present_image = base.surface.acquire_next_image().unwrap();
-            let present_image_view = base.device.create_image_view(present_image.clone(), &ImageViewDesc{
+            let present_image_view = base.device.create_image_view(&present_image, &ImageViewDesc{
                 base_mip_level: 0,
                 aspect_mask: vk::ImageAspectFlags::COLOR,
+                ..Default::default()
+            });
+            let depth_image_view = base.device.create_image_view(&base.depth_image, &ImageViewDesc{
+                aspect_mask: vk::ImageAspectFlags::DEPTH,
+                base_mip_level: 0,
                 ..Default::default()
             });
             let clear_values = [
@@ -770,23 +740,24 @@ fn main() {
                     },
                 },
             ];
+            /*
             let framebuffer_attachments = [present_image_view, base.depth_image_view];
             let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
-                .render_pass(renderpass)
+                .render_pass(rpass.rpass)
                 .attachments(&framebuffer_attachments)
                 .width(base.surface.swapchain.as_ref().unwrap().extent.width)
                 .height(base.surface.swapchain.as_ref().unwrap().extent.height)
                 .layers(1);
-
             let framebuffer = base.device
                 .create_framebuffer(&frame_buffer_create_info, None)
                 .unwrap();
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-                .render_pass(renderpass)
+                .render_pass(rpass.rpass)
                 .framebuffer(framebuffer)
                 .render_area(base.surface.swapchain.as_ref().unwrap().extent.into())
                 .clear_values(&clear_values);
+            */
 
             record_submit_commandbuffer(
                 &base.device,
@@ -797,10 +768,31 @@ fn main() {
                 &[present_image.acquire_semaphore],
                 &[present_image.rendering_finished_semaphore],
                 |device, draw_command_buffer| {
+                    /*
                     device.cmd_begin_render_pass(
                         draw_command_buffer,
                         &render_pass_begin_info,
                         vk::SubpassContents::INLINE,
+                    );
+                    */
+                    rpass.begin(&RenderPassBeginnDesc{
+                        color_attachments: &[
+                            &present_image_view,
+                        ],
+                        depth_attachment: Some(&depth_image_view),
+                        area: vk::Rect2D{
+                            offset: vk::Offset2D{
+                                x: 0,
+                                y: 0
+                            },
+                            extent: vk::Extent2D{
+                                width: base.surface.swapchain.as_ref().unwrap().extent.width,
+                                height: base.surface.swapchain.as_ref().unwrap().extent.height,
+                            }
+                        },
+                        clear_values: &clear_values,
+                    },
+                    draw_command_buffer,
                     );
                     device.cmd_bind_pipeline(
                         draw_command_buffer,
@@ -834,25 +826,9 @@ fn main() {
                     device.cmd_end_render_pass(draw_command_buffer);
                 },
                 );
-            //let mut present_info_err = mem::zeroed();
-            /*
-            let wait_semaphors = [present_image.rendering_finished_semaphore];
-            let swapchains = [base.surface.swapchain.as_ref().unwrap().swapchain];
-            let image_indices = [present_image.image_index as u32];
-            let present_info = vk::PresentInfoKHR::builder()
-                .wait_semaphores(&wait_semaphors) // &base.rendering_complete_semaphore)
-                .swapchains(&swapchains)
-                .image_indices(&image_indices);
-
-            base.surface.swapchain.as_ref().unwrap().swapchain_loader
-                .queue_present(base.present_queue.queue, &present_info)
-                .unwrap();
-            */
 
             base.surface.present_image(&base.present_queue, present_image);
-
-            base.device.device.destroy_framebuffer(framebuffer, None);
-            });
+        });
 
         base.device.device_wait_idle().unwrap();
         for pipeline in graphics_pipelines {
@@ -868,10 +844,10 @@ fn main() {
         base.device.free_memory(vertex_input_buffer_memory, None);
         base.device.destroy_buffer(vertex_input_buffer, None);
         /*
-        for framebuffer in framebuffers {
-            base.device.destroy_framebuffer(framebuffer, None);
-        }
-        */
-        base.device.destroy_render_pass(renderpass, None);
+           for framebuffer in framebuffers {
+           base.device.destroy_framebuffer(framebuffer, None);
+           }
+           */
+        //base.device.destroy_render_pass(renderpass, None);
     }
 }

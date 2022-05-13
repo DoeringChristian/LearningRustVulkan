@@ -19,6 +19,7 @@ pub enum ImageType{
     CubeArray,
 }
 
+#[derive(Clone, Copy)]
 pub struct ImageDesc{
     pub image_type: ImageType,
     pub usage: vk::ImageUsageFlags,
@@ -38,3 +39,42 @@ pub struct ImageViewDesc{
     pub base_mip_level: u32,
     pub level_count: Option<u32>,
 }
+
+#[derive(Default, Copy, Clone)]
+pub struct RenderPassAttachmentDesc{
+    pub format: vk::Format,
+    pub load_op: vk::AttachmentLoadOp,
+    pub store_op: vk::AttachmentStoreOp,
+    pub samples: vk::SampleCountFlags,
+    pub layout: vk::ImageLayout,
+}
+
+impl RenderPassAttachmentDesc{
+    pub fn to_vk(
+        self, 
+        initial_layout: vk::ImageLayout,
+        final_layout: vk::ImageLayout,
+    ) -> vk::AttachmentDescription{
+        vk::AttachmentDescription{
+            format: self.format,
+            samples: self.samples,
+            load_op: self.load_op,
+            initial_layout,
+            final_layout,
+            ..Default::default()
+        }
+    }
+}
+
+pub struct RenderPassDesc<'a>{
+    pub color_attachments: &'a [RenderPassAttachmentDesc],
+    pub depth_attachment: Option<RenderPassAttachmentDesc>,
+}
+
+pub struct RenderPassBeginnDesc<'a>{
+    pub color_attachments: &'a [&'a ImageView],
+    pub depth_attachment: Option<&'a ImageView>,
+    pub area: vk::Rect2D,
+    pub clear_values: &'a [vk::ClearValue],
+}
+

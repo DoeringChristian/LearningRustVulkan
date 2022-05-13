@@ -86,6 +86,7 @@ impl SharedSurface for Arc<Surface>{
                         array_elements: 1,
                     },
                     views: Mutex::new(FxHashMap::default()),
+                    device: device.clone(),
                 },
                 )
             }).collect();
