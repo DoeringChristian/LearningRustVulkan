@@ -21,3 +21,4 @@ raw-window-handle = "0.3.4"
 derive_more = "*"
 gpu-allocator = {git = "https://github.com/Traverse-Research/gpu-allocator.git", branch = "ash-0.37"}
 fxhash = "*"
+vk-sync = "0.1.6"

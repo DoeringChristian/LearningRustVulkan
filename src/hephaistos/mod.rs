@@ -9,6 +9,8 @@ pub mod swapchain;
 pub mod image;
 pub mod framebuffer;
 pub mod renderpass;
+pub mod barrier;
+pub mod buffer;
 
 use arrayvec::ArrayVec;
 use fxhash::FxHashMap;
@@ -21,13 +23,14 @@ pub use self::swapchain::*;
 pub use self::image::*;
 pub use self::framebuffer::*;
 pub use self::renderpass::*;
+pub use self::barrier::*;
+pub use self::buffer::*;
 
 use std::ffi::{CStr, CString};
 
 use ash::extensions::{khr, ext};
 use ash::vk;
 use std::sync::{Arc, Mutex};
-use gpu_allocator::vulkan::*;
 
 use derive_more::*;
 
@@ -61,7 +64,7 @@ pub struct Device{
     pub device: ash::Device,
     pub instance: Arc<Instance>,
     pub adapter: Arc<Adapter>,
-    pub global_allocator: Arc<Mutex<Allocator>>,
+    pub global_allocator: Arc<Mutex<gpu_allocator::vulkan::Allocator>>,
 }
 
 #[derive(Deref, DerefMut)]

@@ -1,16 +1,58 @@
-
 use super::*;
 use ash::extensions::khr;
 use ash::{extensions::ext::DebugUtils, vk};
+use gpu_allocator::vulkan::AllocationCreateDesc;
+use gpu_allocator::MemoryLocation;
 use raw_window_handle::HasRawWindowHandle;
 use std::borrow::BorrowMut;
 use std::sync::Arc;
 
-impl ImageView{
+pub trait CreateImage {
+    fn create_image(&self, desc: &ImageDesc, data: Vec<ImageSubresourceData>) -> Image;
 }
 
-impl Image{
-    pub fn get_view_create_info(&self, desc: &ImageViewDesc) -> vk::ImageViewCreateInfo{
+impl CreateImage for Arc<Device> {
+    fn create_image(&self, desc: &ImageDesc, data: Vec<ImageSubresourceData>) -> Image {
+        unsafe {
+            let create_info = get_image_create_info(desc, !data.is_empty());
+
+            let image = self
+                .device
+                .create_image(&create_info, None)
+                .expect("Image Creation Error");
+
+            let requirements = self.device.get_image_memory_requirements(image);
+
+            let allocation = self
+                .global_allocator
+                .lock()
+                .unwrap()
+                .allocate(&AllocationCreateDesc {
+                    name: "image",
+                    requirements,
+                    location: MemoryLocation::GpuOnly,
+                    linear: false,
+                })
+                .expect("Alloocation Error");
+
+            self.device
+                .bind_image_memory(image, allocation.memory(), allocation.offset())
+                .expect("Image bind error");
+
+            // TODO: load image into memory.
+
+            Image {
+                image,
+                desc: *desc,
+                views: Mutex::new(FxHashMap::default()),
+                device: self.clone(),
+            }
+        }
+    }
+}
+
+impl Image {
+    pub fn get_view_create_info(&self, desc: &ImageViewDesc) -> vk::ImageViewCreateInfo {
         vk::ImageViewCreateInfo {
             format: self.desc.format,
             components: vk::ComponentMapping {
@@ -19,33 +61,87 @@ impl Image{
                 b: vk::ComponentSwizzle::B,
                 a: vk::ComponentSwizzle::A,
             },
-            view_type: desc.view_type.unwrap_or_else(|| {
-                convert_image_type_to_view_type(self.desc.image_type)
-            }),
+            view_type: desc
+                .view_type
+                .unwrap_or_else(|| convert_image_type_to_view_type(self.desc.image_type)),
             subresource_range: vk::ImageSubresourceRange {
                 aspect_mask: desc.aspect_mask,
                 base_mip_level: desc.base_mip_level,
-                level_count: desc
-                    .level_count
-                    .unwrap_or(self.desc.mip_levels as u32),
-                    base_array_layer: 0,
-                    layer_count: match self.desc.image_type {
-                        ImageType::Cube | ImageType::CubeArray => 6,
-                        _ => 1,
-                    },
+                level_count: desc.level_count.unwrap_or(self.desc.mip_levels as u32),
+                base_array_layer: 0,
+                layer_count: match self.desc.image_type {
+                    ImageType::Cube | ImageType::CubeArray => 6,
+                    _ => 1,
+                },
             },
             image: self.image,
             ..Default::default()
         }
     }
+    pub fn view(&self, desc: ImageViewDesc) -> ImageView {
+        unsafe {
+            let mut views = self.views.lock().unwrap();
+            let fb_attachment_desc = FramebufferAttachmentDesc {
+                flgas: self.desc.flags,
+                usage: self.desc.usage,
+                layer_count: desc.level_count.unwrap_or(self.desc.mip_levels as u32),
+            };
+            views
+                .entry(desc)
+                .or_insert_with(|| {
+                    //println!("New View Created");
+                    ImageView {
+                        fb_attachment_desc,
+                        view: self
+                            .device
+                            .device
+                            .create_image_view(
+                                &vk::ImageViewCreateInfo {
+                                    format: self.desc.format,
+                                    components: vk::ComponentMapping {
+                                        r: vk::ComponentSwizzle::R,
+                                        g: vk::ComponentSwizzle::G,
+                                        b: vk::ComponentSwizzle::B,
+                                        a: vk::ComponentSwizzle::A,
+                                    },
+                                    view_type: desc.view_type.unwrap_or_else(|| {
+                                        convert_image_type_to_view_type(self.desc.image_type)
+                                    }),
+                                    subresource_range: vk::ImageSubresourceRange {
+                                        aspect_mask: desc.aspect_mask,
+                                        base_mip_level: desc.base_mip_level,
+                                        level_count: desc
+                                            .level_count
+                                            .unwrap_or(self.desc.mip_levels as u32),
+                                        base_array_layer: 0,
+                                        layer_count: match self.desc.image_type {
+                                            ImageType::Cube | ImageType::CubeArray => 6,
+                                            _ => 1,
+                                        },
+                                    },
+                                    image: self.image,
+                                    ..Default::default()
+                                },
+                                None,
+                            )
+                            .unwrap(),
+                        desc,
+                        image_desc: self.desc,
+                    }
+                })
+                .clone()
+        }
+    }
 }
 
-impl Drop for Image{
+impl Drop for Image {
     fn drop(&mut self) {
-        unsafe{
-            for image_view in self.views.lock().unwrap().iter(){
-                self.device.destroy_image_view(image_view.1.view, None);
+        unsafe {
+            for (_, image_view) in self.views.lock().unwrap().iter() {
+                println!("destroy_image_view");
+                self.device.destroy_image_view(image_view.view, None);
             }
+            println!("destroy_image");
             self.device.destroy_image(self.image, None);
         }
     }

@@ -109,7 +109,7 @@ impl SharedSurface for Arc<Surface>{
                 acquire_semaphores,
                 rendering_finished_semaphores: present_complete_semaphores,
                 extent,
-                device: device.clone(),
+                device,
                 next_semaphore: Mutex::new(0),
             })
         }
