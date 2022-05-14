@@ -13,8 +13,8 @@ impl Swapchain{
             let acquire_semaphore = self.acquire_semaphores[next_semaphore];
             let rendering_finished_semaphore = self.rendering_finished_semaphores[next_semaphore];
 
-            let present_index = self.swapchain_loader.acquire_next_image(
-                self.swapchain, 
+            let present_index = self.loader.acquire_next_image(
+                self.raw, 
                 std::u64::MAX,
                 acquire_semaphore,
                 vk::Fence::null())
@@ -46,14 +46,14 @@ impl Swapchain{
     pub fn present_image(&self, image: SwapchainImage){
         unsafe{
             let wait_semaphors = [image.rendering_finished_semaphore];
-            let swapchains = [self.swapchain];
+            let swapchains = [self.raw];
             let image_indices = [image.image_index as u32];
             let present_info = vk::PresentInfoKHR::builder()
                 .wait_semaphores(&wait_semaphors)
                 .swapchains(&swapchains)
                 .image_indices(&image_indices);
 
-            self.swapchain_loader
+            self.loader
                 .queue_present(self.device.global_queue, &present_info)
                 .unwrap();
 

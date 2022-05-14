@@ -15,14 +15,14 @@ impl SharedInstance for Arc<Instance>{
     fn create_surface(&self, window_handle: &dyn HasRawWindowHandle) -> Arc<Surface> {
         unsafe {
             let surface =
-                ash_window::create_surface(&self.entry, &self.instance, window_handle, None)
+                ash_window::create_surface(&self.entry, &self.raw, window_handle, None)
                 .unwrap();
 
-            let surface_loader = khr::Surface::new(&self.entry, &self.instance);
+            let surface_loader = khr::Surface::new(&self.entry, &self.raw);
 
             Arc::new(Surface{
-                surface,
-                surface_loader,
+                raw: surface,
+                loader: surface_loader,
                 instance: self.clone(),
                 swapchain: None,
             })
@@ -31,7 +31,7 @@ impl SharedInstance for Arc<Instance>{
 
     fn request_adapter(&self, desc: &AdapterDesc) -> Arc<Adapter> {
         unsafe{
-            let pdevices = self.instance
+            let pdevices = self.raw
                 .enumerate_physical_devices()
                 .expect("Physical device error");
             let (pdevice, queue_family_index) = pdevices
@@ -40,7 +40,7 @@ impl SharedInstance for Arc<Instance>{
                     Some(pdevice)
                 })
                 .filter_map(|pdevice| {
-                    self.instance
+                    self.raw
                         .get_physical_device_queue_family_properties(*pdevice)
                         .iter()
                         .enumerate()
@@ -49,10 +49,10 @@ impl SharedInstance for Arc<Instance>{
                                 info.queue_flags.contains(desc.queue_flags) && 
                                 match desc.compatible_surface{
                                     Some(surface) => {
-                                        surface.surface_loader.get_physical_device_surface_support(
+                                        surface.loader.get_physical_device_surface_support(
                                             *pdevice,
                                             index as u32,
-                                            surface.surface,
+                                            surface.raw,
                                         ).unwrap()
                                     },
                                     None => true,
@@ -65,7 +65,7 @@ impl SharedInstance for Arc<Instance>{
                         })
                 })
             .min_by_key(|(pdevice, _)|{
-                match self.instance.get_physical_device_properties(*pdevice).device_type{
+                match self.raw.get_physical_device_properties(*pdevice).device_type{
                     vk::PhysicalDeviceType::DISCRETE_GPU => 0,
                     vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
                     vk::PhysicalDeviceType::VIRTUAL_GPU => 2,
@@ -159,7 +159,7 @@ impl Instance{
 
             Arc::new(
                 Instance{
-                    instance,
+                    raw: instance,
                     entry,
                     debug_utils_loader: Some(debug_utils_loader),
                     debug_call_back: Some(debug_call_back),
@@ -176,7 +176,7 @@ impl Drop for Instance{
                 d.destroy_debug_utils_messenger(self.debug_call_back.unwrap(), None);
                 Some(())
             });
-            self.instance.destroy_instance(None);
+            self.raw.destroy_instance(None);
             println!("debug_utils, instance");
         }
     }
@@ -186,10 +186,10 @@ impl Drop for Surface{
     fn drop(&mut self) {
         unsafe{
             self.swapchain.as_ref().and_then(|s|{
-                s.swapchain_loader.destroy_swapchain(s.swapchain, None);
+                s.loader.destroy_swapchain(s.raw, None);
                 Some(())
             });
-            self.surface_loader.destroy_surface(self.surface, None);
+            self.loader.destroy_surface(self.raw, None);
             println!("swapchain, surface");
         }
     }

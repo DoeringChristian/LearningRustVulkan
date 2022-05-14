@@ -13,26 +13,26 @@ impl Device {
         callback: impl FnOnce(vk::CommandBuffer),
     ){
         unsafe{
-            self.device.begin_command_buffer(
-                commandbuffer.buffer,
+            self.raw.begin_command_buffer(
+                commandbuffer.raw,
                 &vk::CommandBufferBeginInfo::builder()
                 .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
             ).unwrap();
         }
 
-        callback(commandbuffer.buffer);
+        callback(commandbuffer.raw);
 
         unsafe{
-            self.device.end_command_buffer(commandbuffer.buffer).unwrap();
+            self.raw.end_command_buffer(commandbuffer.raw).unwrap();
             
             let submit_info = vk::SubmitInfo::builder()
-                .command_buffers(&[commandbuffer.buffer])
+                .command_buffers(&[commandbuffer.raw])
                 .build();
 
-            self.device.queue_submit(self.global_queue, &[submit_info], vk::Fence::null())
+            self.raw.queue_submit(self.global_queue, &[submit_info], vk::Fence::null())
                 .expect("Could not submit queue.");
 
-            self.device.device_wait_idle();
+            self.raw.device_wait_idle();
         }
     }
 }
@@ -52,7 +52,7 @@ pub fn convert_image_type_to_view_type(image_type: ImageType) -> vk::ImageViewTy
 impl Drop for Device {
     fn drop(&mut self) {
         unsafe {
-            self.device.destroy_device(None);
+            self.raw.destroy_device(None);
             println!("device")
         }
     }

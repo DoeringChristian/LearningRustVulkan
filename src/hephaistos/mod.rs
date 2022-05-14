@@ -38,7 +38,7 @@ use derive_more::*;
 
 pub struct Instance{
     pub entry: ash::Entry,
-    pub instance: ash::Instance,
+    pub raw: ash::Instance,
     pub debug_call_back: Option<vk::DebugUtilsMessengerEXT>,
     pub debug_utils_loader: Option<ext::DebugUtils>,
 }
@@ -47,8 +47,8 @@ pub struct Instance{
 pub struct Surface{
     #[deref]
     #[deref_mut]
-    pub surface: ash::vk::SurfaceKHR,
-    pub surface_loader: khr::Surface,
+    pub raw: ash::vk::SurfaceKHR,
+    pub loader: khr::Surface,
     pub instance: Arc<Instance>,
     pub swapchain: Option<Swapchain>,
 }
@@ -63,7 +63,7 @@ pub struct Adapter{
 pub struct Device{
     #[deref]
     #[deref_mut]
-    pub device: ash::Device,
+    pub raw: ash::Device,
     pub instance: Arc<Instance>,
     pub adapter: Arc<Adapter>,
     pub global_allocator: Arc<Mutex<gpu_allocator::vulkan::Allocator>>,
@@ -72,8 +72,8 @@ pub struct Device{
 }
 
 pub struct Swapchain{
-    pub swapchain: vk::SwapchainKHR,
-    pub swapchain_loader: khr::Swapchain,
+    pub raw: vk::SwapchainKHR,
+    pub loader: khr::Swapchain,
     pub surface_format: vk::SurfaceFormatKHR,
     pub extent: vk::Extent2D,
     pub device: Arc<Device>,
@@ -95,7 +95,7 @@ pub struct SwapchainImage{
 
 // TODO: Implement
 pub struct Image{
-    pub image: vk::Image,
+    pub raw: vk::Image,
     pub desc: ImageDesc,
     pub views: Mutex<FxHashMap<ImageViewDesc, ImageView>>,
     pub device: Arc<Device>,
@@ -111,7 +111,7 @@ pub struct ImageSubresourceData<'a>{
 pub struct ImageView{
     #[deref]
     #[deref_mut]
-    pub view: vk::ImageView,
+    pub raw: vk::ImageView,
     pub desc: ImageViewDesc,
     pub fb_attachment_desc: FramebufferAttachmentDesc,
     pub image_desc: ImageDesc,
@@ -137,14 +137,22 @@ pub struct FramebufferCacheKey{
 pub struct RenderPass{
     #[deref]
     #[deref_mut]
-    pub rpass: vk::RenderPass,
+    pub raw: vk::RenderPass,
     pub framebuffer_cache: FramebufferCache,
     pub device: Arc<Device>,
 }
 
 pub struct CommandBuffer{
-    pub buffer: vk::CommandBuffer,
+    pub raw: vk::CommandBuffer,
     pub pool: vk::CommandPool,
     pub submit_done_fence: vk::Fence,
     pub device: Arc<Device>,
 }
+
+pub struct Buffer {
+    pub raw: vk::Buffer,
+    pub desc: BufferDescInt,
+    pub allocation: gpu_allocator::vulkan::Allocation,
+    pub device: Arc<Device>,
+}
+

@@ -52,13 +52,13 @@ impl CreateRenderPass for Arc<Device>{
             .subpasses(&subpasses);
 
         let render_pass = unsafe {
-            self.device
+            self.raw
                 .create_render_pass(&render_pass_create_info, None)
                 .unwrap()
         };
 
         Arc::new(RenderPass {
-            rpass: render_pass,
+            raw: render_pass,
             framebuffer_cache: FramebufferCache::new(
                 render_pass,
                 desc.color_attachments,
@@ -87,14 +87,14 @@ impl RenderPass{
         let image_attachments = desc.color_attachments.iter()
             .chain(desc.depth_attachment.as_ref().into_iter())
             .map(|v|{
-                v.view
+                v.raw
             }).collect::<ArrayVec<vk::ImageView, MAX_COLOR_ATTACHMENTS>>();
 
         let mut pass_attachment_desc = vk::RenderPassAttachmentBeginInfoKHR::builder()
             .attachments(&image_attachments);
 
         let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-            .render_pass(self.rpass)
+            .render_pass(self.raw)
             .framebuffer(self.framebuffer_cache.get_or_create(&self.device, framebuffer_key).unwrap())
             .render_area(desc.area)
             .clear_values(desc.clear_values)
@@ -119,7 +119,7 @@ impl Drop for RenderPass{
     fn drop(&mut self) {
         self.framebuffer_cache.destroy_cache(&self.device);
         unsafe{
-            self.device.destroy_render_pass(self.rpass, None)
+            self.device.destroy_render_pass(self.raw, None)
         };
     }
 }

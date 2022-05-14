@@ -11,7 +11,7 @@ impl CreateCommandBuffer for Arc<Device> {
             .queue_family_index(self.queue_family_index);
 
         let pool = unsafe {
-            self.device
+            self.raw
                 .create_command_pool(&pool_create_info, None)
                 .expect("Could not create command pool")
         };
@@ -22,13 +22,13 @@ impl CreateCommandBuffer for Arc<Device> {
             .level(vk::CommandBufferLevel::PRIMARY);
 
         let command_buffer = unsafe {
-            self.device
+            self.raw
                 .allocate_command_buffers(&command_buffer_allocate_info)
                 .expect("Could not allocate command_buffer.")[0]
         };
 
         let submit_done_fence = unsafe {
-            self.device
+            self.raw
                 .create_fence(
                     &vk::FenceCreateInfo::builder()
                         .flags(vk::FenceCreateFlags::SIGNALED)
@@ -39,7 +39,7 @@ impl CreateCommandBuffer for Arc<Device> {
         };
 
         CommandBuffer {
-            buffer: command_buffer,
+            raw: command_buffer,
             pool,
             submit_done_fence,
             device: self.clone(),

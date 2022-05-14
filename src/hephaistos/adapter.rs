@@ -41,14 +41,14 @@ impl SharedAdapter for Arc<Adapter>{
                 //.enabled_features(&features)
                 .push_next(&mut features2);
 
-            let device: ash::Device = self.instance.instance
+            let device: ash::Device = self.instance.raw
                 .create_device(self.pdevice, &device_create_info, None)
                 .unwrap();
 
             let queue = device.get_device_queue(self.queue_family_index as u32, 0);
 
             let global_allocator = Allocator::new(&AllocatorCreateDesc{
-                instance: self.instance.instance.clone(),
+                instance: self.instance.raw.clone(),
                 device: device.clone(),
                 physical_device: self.pdevice,
                 debug_settings: AllocatorDebugSettings{
@@ -64,7 +64,7 @@ impl SharedAdapter for Arc<Adapter>{
 
             let device = Arc::new(Device{
                 global_allocator,
-                device,
+                raw: device,
                 instance: self.instance.clone(),
                 adapter: self.clone(),
                 global_queue: queue,

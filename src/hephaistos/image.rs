@@ -17,11 +17,11 @@ impl CreateImage for Arc<Device> {
             let create_info = get_image_create_info(desc, !data.is_empty());
 
             let image = self
-                .device
+                .raw
                 .create_image(&create_info, None)
                 .expect("Image Creation Error");
 
-            let requirements = self.device.get_image_memory_requirements(image);
+            let requirements = self.raw.get_image_memory_requirements(image);
 
             let allocation = self
                 .global_allocator
@@ -35,7 +35,7 @@ impl CreateImage for Arc<Device> {
                 })
                 .expect("Alloocation Error");
 
-            self.device
+            self.raw
                 .bind_image_memory(image, allocation.memory(), allocation.offset())
                 .expect("Image bind error");
 
@@ -95,7 +95,7 @@ impl CreateImage for Arc<Device> {
                         ..Default::default()
                     };
 
-                    self.device.cmd_pipeline_barrier(
+                    self.raw.cmd_pipeline_barrier(
                         cb,
                         vk::PipelineStageFlags::BOTTOM_OF_PIPE,
                         vk::PipelineStageFlags::TRANSFER,
@@ -105,9 +105,9 @@ impl CreateImage for Arc<Device> {
                         &[barrier],
                     );
 
-                    self.device.cmd_copy_buffer_to_image(
+                    self.raw.cmd_copy_buffer_to_image(
                         cb,
-                        buffer.buffer,
+                        buffer.raw,
                         image,
                         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
                         &buffer_copy_regions,
@@ -128,7 +128,7 @@ impl CreateImage for Arc<Device> {
                         ..Default::default()
                     };
 
-                    self.device.cmd_pipeline_barrier(
+                    self.raw.cmd_pipeline_barrier(
                         cb,
                         vk::PipelineStageFlags::TRANSFER,
                         vk::PipelineStageFlags::FRAGMENT_SHADER,
@@ -141,7 +141,7 @@ impl CreateImage for Arc<Device> {
             }
 
             Image {
-                image,
+                raw: image,
                 desc: *desc,
                 views: Mutex::new(FxHashMap::default()),
                 device: self.clone(),
@@ -173,7 +173,7 @@ impl Image {
                         _ => 1,
                     },
                 },
-                image: self.image,
+                image: self.raw,
                 ..Default::default()
         }
     }
@@ -191,9 +191,9 @@ impl Image {
                     //println!("New View Created");
                     ImageView {
                         fb_attachment_desc,
-                        view: self
+                        raw: self
                             .device
-                            .device
+                            .raw
                             .create_image_view(
                                 &vk::ImageViewCreateInfo {
                                     format: self.desc.format,
@@ -218,7 +218,7 @@ impl Image {
                                                 _ => 1,
                                             },
                                     },
-                                    image: self.image,
+                                    image: self.raw,
                                     ..Default::default()
                                 },
                                 None,
@@ -238,10 +238,10 @@ impl Drop for Image {
         unsafe {
             for (_, image_view) in self.views.lock().unwrap().iter() {
                 println!("destroy_image_view");
-                self.device.destroy_image_view(image_view.view, None);
+                self.device.destroy_image_view(image_view.raw, None);
             }
             println!("destroy_image");
-            self.device.destroy_image(self.image, None);
+            self.device.destroy_image(self.raw, None);
         }
     }
 }

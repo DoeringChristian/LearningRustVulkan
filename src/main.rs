@@ -215,7 +215,7 @@ impl ExampleBase {
             let setup_command_buffer = command_buffers[0];
             let draw_command_buffer = command_buffers[1];
 
-            let device_memory_properties = instance.instance.get_physical_device_memory_properties(adapter.pdevice);
+            let device_memory_properties = instance.raw.get_physical_device_memory_properties(adapter.pdevice);
             let depth_image_create_info = vk::ImageCreateInfo::builder()
                 .image_type(vk::ImageType::TYPE_2D)
                 .format(vk::Format::D16_UNORM)
@@ -227,7 +227,7 @@ impl ExampleBase {
                 .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
                 .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
-            let depth_image = device.device.create_image(&depth_image_create_info, None).unwrap();
+            let depth_image = device.raw.create_image(&depth_image_create_info, None).unwrap();
             let depth_image_memory_req = device.get_image_memory_requirements(depth_image);
             let depth_image_memory_index = find_memorytype_index(
                 &depth_image_memory_req,
@@ -280,7 +280,7 @@ impl ExampleBase {
                 &[],
                 |device, setup_command_buffer| {
                     let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-                        .image(depth_image.image)
+                        .image(depth_image.raw)
                         .dst_access_mask(
                             vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
                                 | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
@@ -387,7 +387,7 @@ fn main() {
             .usage(vk::BufferUsageFlags::INDEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
-        let index_buffer = base.device.device.create_buffer(&index_buffer_info, None).unwrap();
+        let index_buffer = base.device.raw.create_buffer(&index_buffer_info, None).unwrap();
         let index_buffer_memory_req = base.device.get_buffer_memory_requirements(index_buffer);
         let index_buffer_memory_index = find_memorytype_index(
             &index_buffer_memory_req,
@@ -433,7 +433,7 @@ fn main() {
         };
 
         let vertex_input_buffer = base
-            .device.device
+            .device.raw
             .create_buffer(&vertex_input_buffer_info, None)
             .unwrap();
 
@@ -634,7 +634,7 @@ fn main() {
             .color_blend_state(&color_blend_state)
             .dynamic_state(&dynamic_state_info)
             .layout(pipeline_layout)
-            .render_pass(rpass.rpass);
+            .render_pass(rpass.raw);
 
         let graphics_pipelines = base
             .device

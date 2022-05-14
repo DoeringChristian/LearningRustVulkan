@@ -14,12 +14,12 @@ pub trait SharedSurface{
 impl SharedSurface for Arc<Surface>{
     fn create_swapchain(&mut self, device: Arc<Device>, adapter: Arc<Adapter>) {
         unsafe{
-            let surface_format = self.surface_loader
-                .get_physical_device_surface_formats(adapter.pdevice, self.surface)
+            let surface_format = self.loader
+                .get_physical_device_surface_formats(adapter.pdevice, self.raw)
                 .unwrap()[0];
 
-            let surface_capabilities = self.surface_loader
-                .get_physical_device_surface_capabilities(adapter.pdevice, self.surface)
+            let surface_capabilities = self.loader
+                .get_physical_device_surface_capabilities(adapter.pdevice, self.raw)
                 .unwrap();
             let mut desired_image_count = 3.max(surface_capabilities.min_image_count);
             if surface_capabilities.max_image_count > 0
@@ -39,18 +39,18 @@ impl SharedSurface for Arc<Surface>{
             } else {
                 surface_capabilities.current_transform
             };
-            let present_modes = self.surface_loader
-                .get_physical_device_surface_present_modes(adapter.pdevice, self.surface)
+            let present_modes = self.loader
+                .get_physical_device_surface_present_modes(adapter.pdevice, self.raw)
                 .unwrap();
             let present_mode = present_modes
                 .iter()
                 .cloned()
                 .find(|&mode| mode == vk::PresentModeKHR::MAILBOX)
                 .unwrap_or(vk::PresentModeKHR::FIFO);
-            let swapchain_loader = khr::Swapchain::new(&self.instance.instance, &device);
+            let swapchain_loader = khr::Swapchain::new(&self.instance.raw, &device);
 
             let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-                .surface(self.surface)
+                .surface(self.raw)
                 .min_image_count(desired_image_count)
                 .image_color_space(surface_format.color_space)
                 .image_format(surface_format.format)
@@ -70,7 +70,7 @@ impl SharedSurface for Arc<Surface>{
             let images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
             let images: Vec<Arc<Image>> = images.into_iter().enumerate().map(|(i, vk_image)|{
                 Arc::new(Image{
-                    image: vk_image,
+                    raw: vk_image,
                     desc: ImageDesc{
                         image_type: ImageType::Tex2d,
                         usage: vk::ImageUsageFlags::COLOR_ATTACHMENT,
@@ -102,8 +102,8 @@ impl SharedSurface for Arc<Surface>{
 
             let surface = Arc::get_mut(self).unwrap();
             surface.swapchain = Some(Swapchain{
-                swapchain,
-                swapchain_loader,
+                raw: swapchain,
+                loader: swapchain_loader,
                 surface_format,
                 images,
                 acquire_semaphores,

@@ -6,40 +6,6 @@ use gpu_allocator::MemoryLocation;
 use std::borrow::BorrowMut;
 use std::sync::{Arc, Weak};
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
-pub struct BufferDesc<'a> {
-    pub label: Option<&'a str>,
-    pub size: usize,
-    pub usage: vk::BufferUsageFlags,
-    pub memory_location: MemoryLocation,
-}
-
-impl<'a> From<BufferDesc<'a>> for BufferDescInt {
-    fn from(src: BufferDesc<'a>) -> Self {
-        BufferDescInt {
-            label: src.label.map(|s| String::from(s)),
-            size: src.size,
-            usage: src.usage,
-            memory_location: src.memory_location,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
-pub struct BufferDescInt {
-    pub label: Option<String>,
-    pub size: usize,
-    pub usage: vk::BufferUsageFlags,
-    pub memory_location: MemoryLocation,
-}
-
-pub struct Buffer {
-    pub buffer: vk::Buffer,
-    pub desc: BufferDescInt,
-    pub allocation: gpu_allocator::vulkan::Allocation,
-    pub device: Arc<Device>,
-}
-
 pub trait CreateBuffer {
     fn create_buffer_alloc(&self, allocator: &mut Allocator, desc: BufferDesc) -> Buffer;
     fn create_buffer(&self, desc: BufferDesc, data: Option<&[u8]>) -> Buffer;
@@ -55,11 +21,11 @@ impl CreateBuffer for Arc<Device> {
         };
 
         let buffer = unsafe {
-            self.device
+            self.raw
                 .create_buffer(&buffer_info, None)
                 .expect("Buffer creation error.")
         };
-        let mut requirements = unsafe { self.device.get_buffer_memory_requirements(buffer) };
+        let mut requirements = unsafe { self.raw.get_buffer_memory_requirements(buffer) };
 
         if desc
             .usage
@@ -78,13 +44,13 @@ impl CreateBuffer for Arc<Device> {
             .expect("Could not allocate memory on GPU");
 
         unsafe {
-            self.device
+            self.raw
                 .bind_buffer_memory(buffer, allocation.memory(), allocation.offset())
                 .expect("Could not bind buffer memory.");
         }
 
         Buffer {
-            buffer,
+            raw: buffer,
             desc: (desc).into(),
             device: self.clone(),
             allocation,
@@ -115,10 +81,10 @@ impl CreateBuffer for Arc<Device> {
             let setup_command_buffer = self.create_command_buffer();
 
             self.with_commandbuffer_wait_idle(&setup_command_buffer, |cb| unsafe {
-                self.device.cmd_copy_buffer(
+                self.raw.cmd_copy_buffer(
                     cb,
-                    scratch_buffer.buffer,
-                    buffer.buffer,
+                    scratch_buffer.raw,
+                    buffer.raw,
                     &[vk::BufferCopy::builder()
                         .dst_offset(0)
                         .src_offset(0)

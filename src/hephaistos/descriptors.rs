@@ -58,3 +58,30 @@ pub struct FramebufferAttachmentDesc{
     pub usage: vk::ImageUsageFlags,
     pub layer_count: u32,
 }
+
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub struct BufferDesc<'a> {
+    pub label: Option<&'a str>,
+    pub size: usize,
+    pub usage: vk::BufferUsageFlags,
+    pub memory_location: gpu_allocator::MemoryLocation,
+}
+
+impl<'a> From<BufferDesc<'a>> for BufferDescInt {
+    fn from(src: BufferDesc<'a>) -> Self {
+        BufferDescInt {
+            label: src.label.map(|s| String::from(s)),
+            size: src.size,
+            usage: src.usage,
+            memory_location: src.memory_location,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub struct BufferDescInt {
+    pub label: Option<String>,
+    pub size: usize,
+    pub usage: vk::BufferUsageFlags,
+    pub memory_location: gpu_allocator::MemoryLocation,
+}
