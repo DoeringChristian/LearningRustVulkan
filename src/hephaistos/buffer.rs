@@ -97,3 +97,11 @@ impl CreateBuffer for Arc<Device> {
         buffer
     }
 }
+
+impl Drop for Buffer{
+    fn drop(&mut self) {
+        unsafe{
+            self.device.destroy_buffer(self.raw, None);
+        }
+    }
+}
