@@ -9,7 +9,7 @@ pub trait CreateRenderPass{
     fn create_render_pass(&self, desc: &RenderPassDesc<'_>) -> Arc<RenderPass>;
 }
 
-impl CreateRenderPass for Arc<Device>{
+impl CreateRenderPass for Arc<SharedDevice>{
     fn create_render_pass(&self, desc: &RenderPassDesc<'_>) -> Arc<RenderPass> {
         let renderpass_attachments = desc
             .color_attachments

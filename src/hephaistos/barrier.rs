@@ -12,7 +12,7 @@ pub struct ImageBarrier {
     discard: bool,
 }
 
-pub fn record_image_barrier(device: &Device, cb: vk::CommandBuffer, barrier: ImageBarrier, create_info: vk::ImageViewCreateInfo){
+pub fn record_image_barrier(device: &SharedDevice, cb: vk::CommandBuffer, barrier: ImageBarrier, create_info: vk::ImageViewCreateInfo){
     let range = vk::ImageSubresourceRange {
         aspect_mask: barrier.aspect_mask,
         base_mip_level: 0,

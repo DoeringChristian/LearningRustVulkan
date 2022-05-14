@@ -12,6 +12,7 @@ pub mod renderpass;
 pub mod barrier;
 pub mod buffer;
 pub mod commandbuffer;
+pub mod deviceframe;
 
 use arrayvec::ArrayVec;
 use fxhash::FxHashMap;
@@ -27,6 +28,7 @@ pub use self::renderpass::*;
 pub use self::barrier::*;
 pub use self::buffer::*;
 pub use self::commandbuffer::*;
+pub use self::deviceframe::*;
 
 use std::ffi::{CStr, CString};
 
@@ -60,7 +62,7 @@ pub struct Adapter{
 }
 
 #[derive(Deref, DerefMut)]
-pub struct Device{
+pub struct SharedDevice{
     #[deref]
     #[deref_mut]
     pub raw: ash::Device,
@@ -71,12 +73,25 @@ pub struct Device{
     pub queue_family_index: u32,
 }
 
+#[derive(Deref, DerefMut)]
+pub struct RenderDevice{
+    #[deref]
+    #[deref_mut]
+    pub shared: Arc<SharedDevice>,
+    pub frames: [Mutex<Arc<DeviceFrame>>; 2],
+    pub setup_cb: CommandBuffer,
+}
+
+pub struct DeviceFrame{
+    pub main_cb: CommandBuffer,
+}
+
 pub struct Swapchain{
     pub raw: vk::SwapchainKHR,
     pub loader: khr::Swapchain,
     pub surface_format: vk::SurfaceFormatKHR,
     pub extent: vk::Extent2D,
-    pub device: Arc<Device>,
+    pub device: Arc<SharedDevice>,
     pub images: Vec<Arc<Image>>,
     pub acquire_semaphores: Vec<vk::Semaphore>,
     pub rendering_finished_semaphores: Vec<vk::Semaphore>,
@@ -98,7 +113,7 @@ pub struct Image{
     pub raw: vk::Image,
     pub desc: ImageDesc,
     pub views: Mutex<FxHashMap<ImageViewDesc, ImageView>>,
-    pub device: Arc<Device>,
+    pub device: Arc<SharedDevice>,
 }
 
 pub struct ImageSubresourceData<'a>{
@@ -139,20 +154,20 @@ pub struct RenderPass{
     #[deref_mut]
     pub raw: vk::RenderPass,
     pub framebuffer_cache: FramebufferCache,
-    pub device: Arc<Device>,
+    pub device: Arc<SharedDevice>,
 }
 
 pub struct CommandBuffer{
     pub raw: vk::CommandBuffer,
     pub pool: vk::CommandPool,
     pub submit_done_fence: vk::Fence,
-    pub device: Arc<Device>,
+    pub device: Arc<SharedDevice>,
 }
 
 pub struct Buffer {
     pub raw: vk::Buffer,
     pub desc: BufferDescInt,
     pub allocation: gpu_allocator::vulkan::Allocation,
-    pub device: Arc<Device>,
+    pub device: Arc<SharedDevice>,
 }
 

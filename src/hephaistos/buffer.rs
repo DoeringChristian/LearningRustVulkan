@@ -11,7 +11,7 @@ pub trait CreateBuffer {
     fn create_buffer(&self, desc: BufferDesc, data: Option<&[u8]>) -> Buffer;
 }
 
-impl CreateBuffer for Arc<Device> {
+impl CreateBuffer for RenderDevice{
     fn create_buffer_alloc(&self, allocator: &mut Allocator, desc: BufferDesc) -> Buffer {
         let buffer_info = vk::BufferCreateInfo {
             size: desc.size as u64,
@@ -52,7 +52,7 @@ impl CreateBuffer for Arc<Device> {
         Buffer {
             raw: buffer,
             desc: (desc).into(),
-            device: self.clone(),
+            device: self.shared.clone(),
             allocation,
         }
     }
@@ -78,9 +78,7 @@ impl CreateBuffer for Arc<Device> {
             scratch_buffer.allocation.mapped_slice_mut().unwrap()[0..data.len()]
                 .copy_from_slice(data);
 
-            let setup_command_buffer = self.create_command_buffer();
-
-            self.with_commandbuffer_wait_idle(&setup_command_buffer, |cb| unsafe {
+            self.with_setup_cb(|cb| unsafe {
                 self.raw.cmd_copy_buffer(
                     cb,
                     scratch_buffer.raw,

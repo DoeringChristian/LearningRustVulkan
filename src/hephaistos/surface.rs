@@ -6,13 +6,13 @@ use raw_window_handle::HasRawWindowHandle;
 use std::sync::Arc;
 
 pub trait SharedSurface{
-    fn create_swapchain(&mut self, device: Arc<Device>, adapter: Arc<Adapter>);
+    fn create_swapchain(&mut self, device: Arc<SharedDevice>, adapter: Arc<Adapter>);
     fn acquire_next_image(&self) -> Option<SwapchainImage>;
     fn present_image(&self, image: SwapchainImage);
 }
 
 impl SharedSurface for Arc<Surface>{
-    fn create_swapchain(&mut self, device: Arc<Device>, adapter: Arc<Adapter>) {
+    fn create_swapchain(&mut self, device: Arc<SharedDevice>, adapter: Arc<Adapter>) {
         unsafe{
             let surface_format = self.loader
                 .get_physical_device_surface_formats(adapter.pdevice, self.raw)

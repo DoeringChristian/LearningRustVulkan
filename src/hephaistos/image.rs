@@ -11,7 +11,7 @@ pub trait CreateImage {
     fn create_image(&self, desc: &ImageDesc, data: Vec<ImageSubresourceData>) -> Image;
 }
 
-impl CreateImage for Arc<Device> {
+impl CreateImage for RenderDevice{
     fn create_image(&self, desc: &ImageDesc, data: Vec<ImageSubresourceData>) -> Image {
         unsafe {
             let create_info = get_image_create_info(desc, !data.is_empty());
@@ -78,9 +78,7 @@ impl CreateImage for Arc<Device> {
                     })
                 .collect::<Vec<_>>();
 
-                let setup_cb = self.create_command_buffer();
-
-                self.with_commandbuffer_wait_idle(&setup_cb, |cb| {
+                self.with_setup_cb(|cb| {
                     let barrier = vk::ImageMemoryBarrier{
                         dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
                         new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -144,7 +142,7 @@ impl CreateImage for Arc<Device> {
                 raw: image,
                 desc: *desc,
                 views: Mutex::new(FxHashMap::default()),
-                device: self.clone(),
+                device: self.shared.clone(),
             }
         }
     }

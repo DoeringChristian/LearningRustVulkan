@@ -123,7 +123,7 @@ pub struct ExampleBase {
     pub instance: Arc<hephaistos::Instance>,
     pub surface: Arc<hephaistos::Surface>,
     pub adapter: Arc<hephaistos::Adapter>,
-    pub device: Arc<hephaistos::Device>,
+    pub device: hephaistos::RenderDevice,
 
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,

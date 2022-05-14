@@ -4,7 +4,7 @@ pub trait CreateCommandBuffer {
     fn create_command_buffer(&self) -> CommandBuffer;
 }
 
-impl CreateCommandBuffer for Arc<Device> {
+impl CreateCommandBuffer for Arc<SharedDevice> {
     fn create_command_buffer(&self) -> CommandBuffer {
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
