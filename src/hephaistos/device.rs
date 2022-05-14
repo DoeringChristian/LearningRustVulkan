@@ -84,6 +84,8 @@ impl RequestDevice for Arc<Adapter>{
 
             let global_allocator = Arc::new(Mutex::new(global_allocator));
 
+            let memory_properties = self.instance.raw.get_physical_device_memory_properties(self.pdevice);
+
             let shared = Arc::new(SharedDevice{
                 global_allocator,
                 raw: device,
@@ -91,6 +93,7 @@ impl RequestDevice for Arc<Adapter>{
                 adapter: self.clone(),
                 global_queue: queue,
                 queue_family_index: self.queue_family_index,
+                memory_properties,
             });
 
             Arc::new(RenderDevice{
@@ -135,8 +138,11 @@ impl SharedDevice {
             self.raw.queue_submit(self.global_queue, &[submit_info], vk::Fence::null())
                 .expect("Could not submit queue.");
 
-            self.raw.device_wait_idle();
+            self.raw.device_wait_idle().unwrap();
         }
+    }
+    pub fn submit(&self, submits: &[vk::SubmitInfo], fence: vk::Fence){
+        unsafe{self.raw.queue_submit(self.global_queue, submits, fence).unwrap()}
     }
 }
 

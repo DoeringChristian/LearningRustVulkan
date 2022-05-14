@@ -52,7 +52,7 @@ macro_rules! offset_of {
 pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
     device: &Device,
     command_buffer: vk::CommandBuffer,
-    command_buffer_reuse_fence: vk::Fence,
+    //command_buffer_reuse_fence: vk::Fence,
     submit_queue: vk::Queue,
     wait_mask: &[vk::PipelineStageFlags],
     wait_semaphores: &[vk::Semaphore],
@@ -60,6 +60,7 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
     f: F,
 ) {
     unsafe {
+        /*
         device
             .wait_for_fences(&[command_buffer_reuse_fence], true, std::u64::MAX)
             .expect("Wait for fence failed.");
@@ -67,6 +68,7 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
         device
             .reset_fences(&[command_buffer_reuse_fence])
             .expect("Reset fences failed.");
+        */
 
         device
             .reset_command_buffer(
@@ -86,6 +88,7 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
             .end_command_buffer(command_buffer)
             .expect("End commandbuffer");
 
+        /*
         let command_buffers = vec![command_buffer];
 
         let submit_info = vk::SubmitInfo::builder()
@@ -101,6 +104,7 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
                 command_buffer_reuse_fence,
             )
             .expect("queue submit failed.");
+        */
     }
 }
 
@@ -128,22 +132,22 @@ pub struct ExampleBase {
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,
 
-    pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+    //pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     //pub present_queue: vk::Queue,
 
     //pub present_images: Vec<vk::Image>,
     //pub present_image_views: Vec<vk::ImageView>,
 
-    pub pool: vk::CommandPool,
-    pub draw_command_buffer: vk::CommandBuffer,
-    pub setup_command_buffer: vk::CommandBuffer,
+    //pub pool: vk::CommandPool,
+    //pub draw_command_buffer: vk::CommandBuffer,
+    //pub setup_command_buffer: vk::CommandBuffer,
 
     pub depth_image: hephaistos::Image,
     //pub depth_image_view: vk::ImageView,
-    pub depth_image_memory: vk::DeviceMemory,
+    //pub depth_image_memory: vk::DeviceMemory,
 
-    pub draw_commands_reuse_fence: vk::Fence,
-    pub setup_commands_reuse_fence: vk::Fence,
+    //pub draw_commands_reuse_fence: vk::Fence,
+    //pub setup_commands_reuse_fence: vk::Fence,
 }
 
 impl ExampleBase {
@@ -198,6 +202,24 @@ impl ExampleBase {
             //let swapchain = instance.create_swapchain(&adapter, &device, &surface);
             surface.create_swapchain(&device, adapter.clone());
 
+
+            // Create Depth image
+
+            let depth_image = device.create_image(&ImageDesc{
+                image_type: ImageType::Tex2d,
+                usage: vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                format: vk::Format::D16_UNORM,
+                tiling: vk::ImageTiling::OPTIMAL,
+                extent: vk::Extent3D{
+                    width: surface.swapchain.as_ref().unwrap().extent.width,
+                    height: surface.swapchain.as_ref().unwrap().extent.height,
+                    depth: 1,
+                },
+                ..Default::default()
+            },Vec::new());
+
+            /*
+            // Internal
             let pool_create_info = vk::CommandPoolCreateInfo::builder()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
                 .queue_family_index(adapter.queue_family_index);
@@ -306,25 +328,26 @@ impl ExampleBase {
                     );
                 },
             );
+            */
 
             ExampleBase {
                 event_loop: RefCell::new(event_loop),
                 instance,
                 device,
                 adapter,
-                device_memory_properties,
+                //device_memory_properties,
                 window,
                 //present_images,
                 //present_image_views,
-                pool,
-                draw_command_buffer,
-                setup_command_buffer,
+                //pool,
+                //draw_command_buffer,
+                //setup_command_buffer,
                 depth_image,
                 //depth_image_view,
-                draw_commands_reuse_fence,
-                setup_commands_reuse_fence,
+                //draw_commands_reuse_fence,
+                //setup_commands_reuse_fence,
                 surface,
-                depth_image_memory,
+                //depth_image_memory,
             }
         }
     }
@@ -334,6 +357,7 @@ impl Drop for ExampleBase {
     fn drop(&mut self) {
         unsafe {
             self.device.device_wait_idle().unwrap();
+            /*
             self.device
                 .destroy_fence(self.draw_commands_reuse_fence, None);
             self.device
@@ -345,6 +369,7 @@ impl Drop for ExampleBase {
             }
             */
             self.device.destroy_command_pool(self.pool, None);
+            */
         }
     }
 }
@@ -391,7 +416,7 @@ fn main() {
         let index_buffer_memory_req = base.device.get_buffer_memory_requirements(index_buffer);
         let index_buffer_memory_index = find_memorytype_index(
             &index_buffer_memory_req,
-            &base.device_memory_properties,
+            &base.device.memory_properties,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         )
             .expect("Unable to find suitable memorytype for the index buffer.");
@@ -443,7 +468,7 @@ fn main() {
 
         let vertex_input_buffer_memory_index = find_memorytype_index(
             &vertex_input_buffer_memory_req,
-            &base.device_memory_properties,
+            &base.device.memory_properties,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         )
             .expect("Unable to find suitable memorytype for the vertex buffer.");
@@ -675,10 +700,12 @@ fn main() {
                 },
             ];
 
+            let frame = base.device.begin_frame();
+
             record_submit_commandbuffer(
                 &base.device,
-                base.draw_command_buffer,
-                base.draw_commands_reuse_fence,
+                frame.main_cb.raw,
+                //base.draw_commands_reuse_fence,
                 base.device.global_queue,
                 &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT],
                 &[present_image.acquire_semaphore],
@@ -736,7 +763,17 @@ fn main() {
                 },
                 );
 
+            let submit_info = vk::SubmitInfo::builder()
+                .wait_semaphores(&[present_image.acquire_semaphore])
+                .signal_semaphores(&[present_image.rendering_finished_semaphore])
+                .wait_dst_stage_mask(&[])
+                .command_buffers(&[frame.main_cb.raw])
+                .build();
+
+            base.device.submit_frame(&[submit_info], &frame);
+
             base.surface.present_image(present_image);
+            base.device.finish_frame(frame);
         });
 
         base.device.device_wait_idle().unwrap();

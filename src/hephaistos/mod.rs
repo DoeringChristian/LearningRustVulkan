@@ -71,6 +71,7 @@ pub struct SharedDevice{
     pub global_allocator: Arc<Mutex<gpu_allocator::vulkan::Allocator>>,
     pub global_queue: vk::Queue,
     pub queue_family_index: u32,
+    pub memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
 
 #[derive(Deref, DerefMut)]

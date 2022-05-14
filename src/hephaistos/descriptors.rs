@@ -31,6 +31,21 @@ pub struct ImageDesc{
     pub array_elements: u32,
 }
 
+impl Default for ImageDesc{
+    fn default() -> Self {
+        Self{
+            image_type: ImageType::Tex2d,
+            usage: Default::default(),
+            flags: Default::default(),
+            format: Default::default(),
+            extent: Default::default(),
+            tiling: Default::default(),
+            mip_levels: 1,
+            array_elements: 1,
+        }
+    }
+}
+
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ImageViewDesc{
     pub view_type: Option<vk::ImageViewType>,
