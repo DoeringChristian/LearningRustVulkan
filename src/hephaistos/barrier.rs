@@ -12,7 +12,7 @@ pub struct ImageBarrier {
     discard: bool,
 }
 
-pub fn record_image_barrier(device: &Device, cb: vk::CommandBuffer, barrier: ImageBarrier) {
+pub fn record_image_barrier(device: &Device, cb: vk::CommandBuffer, barrier: ImageBarrier, create_info: vk::ImageViewCreateInfo){
     let range = vk::ImageSubresourceRange {
         aspect_mask: barrier.aspect_mask,
         base_mip_level: 0,
@@ -20,7 +20,32 @@ pub fn record_image_barrier(device: &Device, cb: vk::CommandBuffer, barrier: Ima
         base_array_layer: 0,
         layer_count: vk::REMAINING_ARRAY_LAYERS,
     };
+    let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
+        .image(barrier.image)
+        .dst_access_mask(
+            vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+        )
+        .new_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+        .old_layout(vk::ImageLayout::UNDEFINED)
+        .subresource_range(
+            vk::ImageSubresourceRange::builder()
+            .aspect_mask(vk::ImageAspectFlags::DEPTH)
+            .layer_count(1)
+            .build(),
+        );
 
+    unsafe{
+        device.cmd_pipeline_barrier(
+            cb,
+            vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+            vk::PipelineStageFlags::TOP_OF_PIPE,
+            vk::DependencyFlags::empty(),
+            &[],
+            &[],
+            &[layout_transition_barriers.build()],
+        );
+    }
 
 }
 
@@ -175,8 +200,8 @@ pub fn get_access_info(access_type: AccessType) -> AccessInfo {
         AccessType::DepthStencilAttachmentRead => AccessInfo {
             stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
                 | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-            access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
-            image_layout: vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
+                image_layout: vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         },
         AccessType::ComputeShaderReadUniformBuffer => AccessInfo {
             stage_mask: vk::PipelineStageFlags::COMPUTE_SHADER,
@@ -266,22 +291,22 @@ pub fn get_access_info(access_type: AccessType) -> AccessInfo {
         AccessType::DepthStencilAttachmentWrite => AccessInfo {
             stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
                 | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-            access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-            image_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                image_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         },
         AccessType::DepthAttachmentWriteStencilReadOnly => AccessInfo {
             stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
                 | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-            access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
-                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
-            image_layout: vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+                access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
+                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
+                    image_layout: vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
         },
         AccessType::StencilAttachmentWriteDepthReadOnly => AccessInfo {
             stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
                 | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-            access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
-                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
-            image_layout: vk::ImageLayout::DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL,
+                access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
+                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
+                    image_layout: vk::ImageLayout::DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL,
         },
         AccessType::ComputeShaderWrite => AccessInfo {
             stage_mask: vk::PipelineStageFlags::COMPUTE_SHADER,
@@ -307,7 +332,7 @@ pub fn get_access_info(access_type: AccessType) -> AccessInfo {
             stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
                 | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            image_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                image_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         },
         AccessType::General => AccessInfo {
             stage_mask: vk::PipelineStageFlags::ALL_COMMANDS,
@@ -345,13 +370,13 @@ pub fn image_aspect_mask_from_access_type_and_format(
 
     match image_layout {
         vk::ImageLayout::GENERAL
-        | vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
-        | vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        | vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL
-        | vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL
-        | vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-        | vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-        | vk::ImageLayout::TRANSFER_DST_OPTIMAL => Some(image_aspect_mask_from_format(format)),
+            | vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
+            | vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            | vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL
+            | vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL
+            | vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+            | vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+            | vk::ImageLayout::TRANSFER_DST_OPTIMAL => Some(image_aspect_mask_from_format(format)),
         _ => {
             //println!("{:?}", image_layout);
             None
@@ -360,20 +385,20 @@ pub fn image_aspect_mask_from_access_type_and_format(
 
     /*let info = get_access_info(access_type);
 
-    match info.image_layout {
-        vk::ImageLayout::GENERAL => Some(image_aspect_mask_from_format(format)),
-        vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL => Some(image_aspect_mask_from_format(format)),
-        vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL => Some(
-            image_aspect_mask_from_format(format)
-                & (vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL),
-        ),
-        vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL => Some(
-            image_aspect_mask_from_format(format)
-                & (vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL),
-        ),
-        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL => Some(image_aspect_mask_from_format(format)),
-        vk::ImageLayout::TRANSFER_SRC_OPTIMAL => Some(image_aspect_mask_from_format(format)),
-        vk::ImageLayout::TRANSFER_DST_OPTIMAL => Some(image_aspect_mask_from_format(format)),
-        _ => None,
-    }*/
+      match info.image_layout {
+      vk::ImageLayout::GENERAL => Some(image_aspect_mask_from_format(format)),
+      vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL => Some(image_aspect_mask_from_format(format)),
+      vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL => Some(
+      image_aspect_mask_from_format(format)
+      & (vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL),
+      ),
+      vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL => Some(
+      image_aspect_mask_from_format(format)
+      & (vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL),
+      ),
+      vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL => Some(image_aspect_mask_from_format(format)),
+      vk::ImageLayout::TRANSFER_SRC_OPTIMAL => Some(image_aspect_mask_from_format(format)),
+      vk::ImageLayout::TRANSFER_DST_OPTIMAL => Some(image_aspect_mask_from_format(format)),
+      _ => None,
+      }*/
 }

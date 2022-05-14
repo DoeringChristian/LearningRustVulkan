@@ -7,6 +7,34 @@ use raw_window_handle::HasRawWindowHandle;
 use std::sync::Arc;
 
 impl Device {
+    pub fn with_commandbuffer_wait_idle(
+        &self,
+        commandbuffer: &CommandBuffer,
+        callback: impl FnOnce(vk::CommandBuffer),
+    ){
+        unsafe{
+            self.device.begin_command_buffer(
+                commandbuffer.buffer,
+                &vk::CommandBufferBeginInfo::builder()
+                .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
+            ).unwrap();
+        }
+
+        callback(commandbuffer.buffer);
+
+        unsafe{
+            self.device.end_command_buffer(commandbuffer.buffer).unwrap();
+            
+            let submit_info = vk::SubmitInfo::builder()
+                .command_buffers(&[commandbuffer.buffer])
+                .build();
+
+            self.device.queue_submit(self.global_queue, &[submit_info], vk::Fence::null())
+                .expect("Could not submit queue.");
+
+            self.device.device_wait_idle();
+        }
+    }
 }
 
 pub fn convert_image_type_to_view_type(image_type: ImageType) -> vk::ImageViewType {

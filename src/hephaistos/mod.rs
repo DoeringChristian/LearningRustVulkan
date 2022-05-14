@@ -11,6 +11,7 @@ pub mod framebuffer;
 pub mod renderpass;
 pub mod barrier;
 pub mod buffer;
+pub mod commandbuffer;
 
 use arrayvec::ArrayVec;
 use fxhash::FxHashMap;
@@ -25,6 +26,7 @@ pub use self::framebuffer::*;
 pub use self::renderpass::*;
 pub use self::barrier::*;
 pub use self::buffer::*;
+pub use self::commandbuffer::*;
 
 use std::ffi::{CStr, CString};
 
@@ -65,15 +67,8 @@ pub struct Device{
     pub instance: Arc<Instance>,
     pub adapter: Arc<Adapter>,
     pub global_allocator: Arc<Mutex<gpu_allocator::vulkan::Allocator>>,
-}
-
-#[derive(Deref, DerefMut)]
-pub struct Queue{
-    #[deref]
-    #[deref_mut]
-    pub queue: vk::Queue,
-    pub device: Arc<Device>,
-    pub family_index: u32,
+    pub global_queue: vk::Queue,
+    pub queue_family_index: u32,
 }
 
 pub struct Swapchain{
@@ -144,5 +139,12 @@ pub struct RenderPass{
     #[deref_mut]
     pub rpass: vk::RenderPass,
     pub framebuffer_cache: FramebufferCache,
+    pub device: Arc<Device>,
+}
+
+pub struct CommandBuffer{
+    pub buffer: vk::CommandBuffer,
+    pub pool: vk::CommandPool,
+    pub submit_done_fence: vk::Fence,
     pub device: Arc<Device>,
 }

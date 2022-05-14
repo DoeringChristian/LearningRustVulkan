@@ -124,7 +124,6 @@ pub struct ExampleBase {
     pub surface: Arc<hephaistos::Surface>,
     pub adapter: Arc<hephaistos::Adapter>,
     pub device: Arc<hephaistos::Device>,
-    pub present_queue: Arc<hephaistos::Queue>,
 
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,
@@ -194,7 +193,7 @@ impl ExampleBase {
                 queue_flags: vk::QueueFlags::GRAPHICS,
             });
 
-            let (device, present_queue) = adapter.request_device();
+            let device = adapter.request_device();
 
             //let swapchain = instance.create_swapchain(&adapter, &device, &surface);
             surface.create_swapchain(device.clone(), adapter.clone());
@@ -275,7 +274,7 @@ impl ExampleBase {
                 &device,
                 setup_command_buffer,
                 setup_commands_reuse_fence,
-                present_queue.queue,
+                device.global_queue,
                 &[],
                 &[],
                 &[],
@@ -315,7 +314,6 @@ impl ExampleBase {
                 adapter,
                 device_memory_properties,
                 window,
-                present_queue,
                 //present_images,
                 //present_image_views,
                 pool,
@@ -681,7 +679,7 @@ fn main() {
                 &base.device,
                 base.draw_command_buffer,
                 base.draw_commands_reuse_fence,
-                base.present_queue.queue,
+                base.device.global_queue,
                 &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT],
                 &[present_image.acquire_semaphore],
                 &[present_image.rendering_finished_semaphore],
@@ -738,7 +736,7 @@ fn main() {
                 },
                 );
 
-            base.surface.present_image(&base.present_queue, present_image);
+            base.surface.present_image(present_image);
         });
 
         base.device.device_wait_idle().unwrap();

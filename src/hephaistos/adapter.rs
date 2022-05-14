@@ -8,11 +8,11 @@ use raw_window_handle::HasRawWindowHandle;
 use std::sync::Arc;
 
 pub trait SharedAdapter{
-    fn request_device(&self) -> (Arc<Device>, Arc<Queue>);
+    fn request_device(&self) -> Arc<Device>;
 }
 
 impl SharedAdapter for Arc<Adapter>{
-    fn request_device(&self) -> (Arc<Device>, Arc<Queue>) {
+    fn request_device(&self) -> Arc<Device> {
         unsafe{
             let device_extension_names_raw = [
                 khr::Swapchain::name().as_ptr(),
@@ -67,15 +67,11 @@ impl SharedAdapter for Arc<Adapter>{
                 device,
                 instance: self.instance.clone(),
                 adapter: self.clone(),
+                global_queue: queue,
+                queue_family_index: self.queue_family_index,
             });
 
-            let queue = Arc::new(Queue{
-                queue,
-                device: device.clone(),
-                family_index: self.queue_family_index,
-            });
-
-            (device, queue)
+            device
         }
     }
 }

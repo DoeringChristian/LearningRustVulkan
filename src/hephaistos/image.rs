@@ -40,6 +40,105 @@ impl CreateImage for Arc<Device> {
                 .expect("Image bind error");
 
             // TODO: load image into memory.
+            if !data.is_empty(){
+                let data_bytes: usize = data.iter().map(|d| d.data.len()).sum();
+
+                let mut buffer = self.create_buffer(BufferDesc{
+                    label: Some("Image Staging Buffer"),
+                    size: data_bytes,
+                    usage: vk::BufferUsageFlags::TRANSFER_SRC,
+                    memory_location: gpu_allocator::MemoryLocation::CpuToGpu,
+                }, None);
+                let mapped_slice_mut = buffer.allocation.mapped_slice_mut().unwrap();
+                let mut offset = 0;
+
+                let buffer_copy_regions = data
+                    .into_iter()
+                    .enumerate()
+                    .map(|(level, sub)| {
+                        mapped_slice_mut[offset..offset + sub.data.len()].copy_from_slice(sub.data);
+
+                        let region = vk::BufferImageCopy::builder()
+                            .buffer_offset(offset as _)
+                            .image_subresource(
+                                vk::ImageSubresourceLayers::builder()
+                                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                                .layer_count(1)
+                                .mip_level(level as _)
+                                .build(),
+                            )
+                            .image_extent(vk::Extent3D {
+                                width: (desc.extent.width >> level).max(1),
+                                height: (desc.extent.height >> level).max(1),
+                                depth: (desc.extent.depth >> level).max(1),
+                            });
+
+                        offset += sub.data.len();
+                        region.build()
+                    })
+                .collect::<Vec<_>>();
+
+                let setup_cb = self.create_command_buffer();
+
+                self.with_commandbuffer_wait_idle(&setup_cb, |cb| {
+                    let barrier = vk::ImageMemoryBarrier{
+                        dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                        new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                        image,
+                        subresource_range: vk::ImageSubresourceRange {
+                            aspect_mask: vk::ImageAspectFlags::COLOR,
+                            base_mip_level: 0,
+                            level_count: vk::REMAINING_MIP_LEVELS,
+                            base_array_layer: 0,
+                            layer_count: vk::REMAINING_ARRAY_LAYERS,
+                        },
+                        ..Default::default()
+                    };
+
+                    self.device.cmd_pipeline_barrier(
+                        cb,
+                        vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                        vk::PipelineStageFlags::TRANSFER,
+                        vk::DependencyFlags::empty(),
+                        &[],
+                        &[],
+                        &[barrier],
+                    );
+
+                    self.device.cmd_copy_buffer_to_image(
+                        cb,
+                        buffer.buffer,
+                        image,
+                        vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                        &buffer_copy_regions,
+                    );
+
+                    let barrier = vk::ImageMemoryBarrier{
+                        src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                        dst_access_mask: vk::AccessFlags::SHADER_READ,
+                        new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                        image,
+                        subresource_range: vk::ImageSubresourceRange {
+                            aspect_mask: vk::ImageAspectFlags::COLOR,
+                            base_mip_level: 0,
+                            level_count: vk::REMAINING_MIP_LEVELS,
+                            base_array_layer: 0,
+                            layer_count: vk::REMAINING_ARRAY_LAYERS,
+                        },
+                        ..Default::default()
+                    };
+
+                    self.device.cmd_pipeline_barrier(
+                        cb,
+                        vk::PipelineStageFlags::TRANSFER,
+                        vk::PipelineStageFlags::FRAGMENT_SHADER,
+                        vk::DependencyFlags::empty(),
+                        &[],
+                        &[],
+                        &[barrier],
+                    );
+                });
+            }
 
             Image {
                 image,
@@ -64,18 +163,18 @@ impl Image {
             view_type: desc
                 .view_type
                 .unwrap_or_else(|| convert_image_type_to_view_type(self.desc.image_type)),
-            subresource_range: vk::ImageSubresourceRange {
-                aspect_mask: desc.aspect_mask,
-                base_mip_level: desc.base_mip_level,
-                level_count: desc.level_count.unwrap_or(self.desc.mip_levels as u32),
-                base_array_layer: 0,
-                layer_count: match self.desc.image_type {
-                    ImageType::Cube | ImageType::CubeArray => 6,
-                    _ => 1,
+                subresource_range: vk::ImageSubresourceRange {
+                    aspect_mask: desc.aspect_mask,
+                    base_mip_level: desc.base_mip_level,
+                    level_count: desc.level_count.unwrap_or(self.desc.mip_levels as u32),
+                    base_array_layer: 0,
+                    layer_count: match self.desc.image_type {
+                        ImageType::Cube | ImageType::CubeArray => 6,
+                        _ => 1,
+                    },
                 },
-            },
-            image: self.image,
-            ..Default::default()
+                image: self.image,
+                ..Default::default()
         }
     }
     pub fn view(&self, desc: ImageViewDesc) -> ImageView {
@@ -113,23 +212,23 @@ impl Image {
                                         level_count: desc
                                             .level_count
                                             .unwrap_or(self.desc.mip_levels as u32),
-                                        base_array_layer: 0,
-                                        layer_count: match self.desc.image_type {
-                                            ImageType::Cube | ImageType::CubeArray => 6,
-                                            _ => 1,
-                                        },
+                                            base_array_layer: 0,
+                                            layer_count: match self.desc.image_type {
+                                                ImageType::Cube | ImageType::CubeArray => 6,
+                                                _ => 1,
+                                            },
                                     },
                                     image: self.image,
                                     ..Default::default()
                                 },
                                 None,
-                            )
-                            .unwrap(),
-                        desc,
-                        image_desc: self.desc,
+                                )
+                                    .unwrap(),
+                                    desc,
+                                    image_desc: self.desc,
                     }
                 })
-                .clone()
+            .clone()
         }
     }
 }

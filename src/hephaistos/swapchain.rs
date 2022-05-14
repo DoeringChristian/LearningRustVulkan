@@ -43,7 +43,7 @@ impl Swapchain{
             }
         }
     }
-    pub fn present_image(&self, queue: &Queue, image: SwapchainImage){
+    pub fn present_image(&self, image: SwapchainImage){
         unsafe{
             let wait_semaphors = [image.rendering_finished_semaphore];
             let swapchains = [self.swapchain];
@@ -54,7 +54,7 @@ impl Swapchain{
                 .image_indices(&image_indices);
 
             self.swapchain_loader
-                .queue_present(queue.queue, &present_info)
+                .queue_present(self.device.global_queue, &present_info)
                 .unwrap();
 
             }
