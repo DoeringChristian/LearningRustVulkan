@@ -30,11 +30,11 @@ impl RenderDevice{
 }
 
 pub trait RequestDevice{
-    fn request_device(&self) -> RenderDevice;
+    fn request_device(&self) -> Arc<RenderDevice>;
 }
 
 impl RequestDevice for Arc<Adapter>{
-    fn request_device(&self) -> RenderDevice{
+    fn request_device(&self) -> Arc<RenderDevice>{
         unsafe{
             let device_extension_names_raw = [
                 khr::Swapchain::name().as_ptr(),
@@ -93,7 +93,7 @@ impl RequestDevice for Arc<Adapter>{
                 queue_family_index: self.queue_family_index,
             });
 
-            RenderDevice{
+            Arc::new(RenderDevice{
                 shared: shared.clone(),
                 frames: [
                     Mutex::new(Arc::new(DeviceFrame{
@@ -104,8 +104,7 @@ impl RequestDevice for Arc<Adapter>{
                     })),
                 ],
                 setup_cb: shared.create_command_buffer(),
-            }
-
+            })
         }
     }
 }

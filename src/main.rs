@@ -123,7 +123,7 @@ pub struct ExampleBase {
     pub instance: Arc<hephaistos::Instance>,
     pub surface: Arc<hephaistos::Surface>,
     pub adapter: Arc<hephaistos::Adapter>,
-    pub device: hephaistos::RenderDevice,
+    pub device: Arc<hephaistos::RenderDevice>,
 
     pub window: winit::window::Window,
     pub event_loop: RefCell<EventLoop<()>>,
@@ -196,7 +196,7 @@ impl ExampleBase {
             let device = adapter.request_device();
 
             //let swapchain = instance.create_swapchain(&adapter, &device, &surface);
-            surface.create_swapchain(device.clone(), adapter.clone());
+            surface.create_swapchain(&device, adapter.clone());
 
             let pool_create_info = vk::CommandPoolCreateInfo::builder()
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
